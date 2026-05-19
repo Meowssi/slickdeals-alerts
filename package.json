@@ -1,0 +1,27 @@
+{
+  "name": "slickdeals-alerts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fast, reliable alternative to Slickdeals' built-in alert system: poll arbitrary saved-search RSS feeds, deliver matches to Telegram + ntfy with sub-minute latency, and view everything from a unified dashboard.",
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "dev:dashboard": "pnpm --filter @slickalerts/dashboard dev",
+    "dev:poller": "pnpm --filter @slickalerts/poller dev",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --linked > packages/shared/src/db.types.ts",
+    "fns:deploy": "supabase functions deploy notifier && supabase functions deploy telegram-webhook && supabase functions deploy channel-verify && supabase functions deploy send-test",
+    "fns:serve": "supabase functions serve"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

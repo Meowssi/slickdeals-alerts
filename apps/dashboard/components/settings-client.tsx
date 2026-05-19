@@ -1,0 +1,196 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { PROVIDER_CATALOG, getProviderMeta, type NotificationChannelRow, type UserSettingsRow } from "@slickalerts/shared";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { ChannelForm } from "@/components/channel-form";
+
+export function SettingsClient({
+  settings, channels,
+}: {
+  settings: UserSettingsRow | null;
+  channels: NotificationChannelRow[];
+}) {
+  const router = useRouter();
+  const [adding, setAdding] = useState<string | null>(null);
+
+  async function deleteChannel(id: string) {
+    if (!confirm("Delete this channel?")) return;
+    const supa = supabaseBrowser();
+    await supa.from("notification_channels").delete().eq("id", id);
+    router.refresh();
+  }
+
+  async function toggleChannel(id: string, enabled: boolean) {
+    const supa = supabaseBrowser();
+    await supa.from("notification_channels").update({ enabled }).eq("id", id);
+    router.refresh();
+  }
+
+  async function sendTest(id: string) {
+    const supa = supabaseBrowser();
+    const { data: { session } } = await supa.auth.getSession();
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-test`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ channel_id: id }),
+      },
+    );
+    const json = await res.json();
+    alert(json.ok ? "✅ Sent" : `❌ ${json.error}`);
+  }
+
+  return (
+    <>
+      <section className="card p-6 space-y-4">
+        <h2 className="font-semibold">Preferences</h2>
+        <PreferencesForm settings={settings} />
+      </section>
+
+      <section className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold">Notification channels</h2>
+          <select
+            className="input max-w-xs"
+            value=""
+            onChange={(e) => e.target.value && setAdding(e.target.value)}
+          >
+            <option value="">+ Add channel…</option>
+            {PROVIDER_CATALOG.map((p) => (
+              <option key={p.type} value={p.type}>{p.displayName}</option>
+            ))}
+          </select>
+        </div>
+
+        {channels.length === 0 ? (
+          <p className="text-sm text-neutral-500">No channels yet. Pick one above.</p>
+        ) : (
+          <ul className="divide-y divide-neutral-100">
+            {channels.map((c) => {
+              const meta = getProviderMeta(c.type);
+              return (
+                <li key={c.id} className="py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{meta?.displayName ?? c.type}</span>
+                      <span className="text-xs text-neutral-500">— {c.name}</span>
+                      {c.verified_at ? (
+                        <span className="text-xs text-green-700">✓ verified</span>
+                      ) : (
+                        <span className="text-xs text-amber-700">unverified</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-neutral-500 mt-0.5 truncate">
+                      {summarizeConfig(c.type, c.config)}
+                    </div>
+                  </div>
+                  <button className="btn-secondary text-xs"
+                          onClick={() => sendTest(c.id)} disabled={!c.verified_at}>
+                    Send test
+                  </button>
+                  <button className="btn-secondary text-xs"
+                          onClick={() => toggleChannel(c.id, !c.enabled)}>
+                    {c.enabled ? "Disable" : "Enable"}
+                  </button>
+                  <button className="btn-danger text-xs" onClick={() => deleteChannel(c.id)}>
+                    Delete
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {adding && (
+        <AddChannelModal
+          providerType={adding}
+          onClose={() => { setAdding(null); router.refresh(); }}
+        />
+      )}
+    </>
+  );
+}
+
+function summarizeConfig(type: string, cfg: Record<string, unknown>): string {
+  if (type === "telegram") return cfg.chat_id ? `chat ${cfg.chat_id}` : "(not linked)";
+  if (type === "ntfy") return `topic ${cfg.topic ?? ""}`;
+  if (type === "sms_twilio") return String(cfg.phone ?? "");
+  if (type === "pushover") return `user_key ****${String(cfg.user_key ?? "").slice(-4)}`;
+  if (type === "discord") return "webhook configured";
+  if (type === "email") return String(cfg.address ?? "");
+  if (type === "webhook") return String(cfg.url ?? "");
+  return JSON.stringify(cfg).slice(0, 80);
+}
+
+function PreferencesForm({ settings }: { settings: UserSettingsRow | null }) {
+  const router = useRouter();
+  const [tz, setTz] = useState(settings?.timezone ?? "America/Los_Angeles");
+  const [qs, setQs] = useState(settings?.quiet_hours_start ?? "");
+  const [qe, setQe] = useState(settings?.quiet_hours_end ?? "");
+  const [digest, setDigest] = useState(settings?.digest_mode ?? false);
+
+  async function save() {
+    const supa = supabaseBrowser();
+    await supa
+      .from("user_settings")
+      .update({
+        timezone: tz,
+        quiet_hours_start: qs || null,
+        quiet_hours_end: qe || null,
+        digest_mode: digest,
+      })
+      .eq("user_id", (await supa.auth.getUser()).data.user!.id);
+    router.refresh();
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block text-sm font-medium mb-1">Timezone</label>
+        <input className="input" value={tz} onChange={(e) => setTz(e.target.value)} />
+        <p className="text-xs text-neutral-500 mt-1">IANA name, e.g. America/Los_Angeles</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-sm font-medium mb-1">Quiet start</label>
+          <input className="input" type="time" value={qs} onChange={(e) => setQs(e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Quiet end</label>
+          <input className="input" type="time" value={qe} onChange={(e) => setQe(e.target.value)} />
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={digest} onChange={(e) => setDigest(e.target.checked)} />
+        Digest mode — batch non-urgent matches into hourly summaries
+      </label>
+      <div className="md:col-span-2 text-right">
+        <button className="btn-primary" onClick={save}>Save preferences</button>
+      </div>
+    </div>
+  );
+}
+
+function AddChannelModal({
+  providerType, onClose,
+}: { providerType: string; onClose: () => void }) {
+  const meta = getProviderMeta(providerType);
+  if (!meta) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div className="card max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-semibold mb-1">Add {meta.displayName}</h2>
+        <p className="text-sm text-neutral-600 mb-4">{meta.setup.instructions}</p>
+        <ChannelForm meta={meta} onDone={onClose} onCancel={onClose} />
+      </div>
+    </div>
+  );
+}

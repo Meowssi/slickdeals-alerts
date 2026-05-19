@@ -1,0 +1,41 @@
+# Supabase project config. Most fields are managed by the dashboard;
+# this file is what `supabase init` writes and what local dev reads.
+project_id = "slickdeals-alerts"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false       # magic link flow doesn't need confirmation
+otp_length = 6
+otp_expiry = 600
+
+[functions]
+verify_jwt = false                 # we verify manually in functions that need it

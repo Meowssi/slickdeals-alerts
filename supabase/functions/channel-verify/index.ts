@@ -1,0 +1,154 @@
+// =============================================================================
+// channel-verify
+// -----------------------------------------------------------------------------
+// Called by the dashboard to verify a notification channel. Supports two phases:
+//
+//   POST { channel_id, action: "start" }
+//     - Generates a verification_code and (for SMS/etc.) delivers it via the
+//       channel itself. For Telegram, returns the code + deep link.
+//
+//   POST { channel_id, action: "confirm", code: "ABC123" }
+//     - For SMS/Twilio: verifies user-supplied code matches.
+//     - For Telegram: not used (the bot's /link command confirms instead).
+//
+// Auth: user JWT in Authorization header. Verifies channel.user_id == JWT user.
+// =============================================================================
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+interface StartReq  { channel_id: string; action: "start" }
+interface ConfirmReq { channel_id: string; action: "confirm"; code: string }
+type Req = StartReq | ConfirmReq;
+
+Deno.serve(async (req) => {
+  if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
+
+  const auth = req.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) return new Response("unauthorized", { status: 401 });
+  const jwt = auth.slice("Bearer ".length);
+
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supaUser = createClient(url, anon, {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
+  const { data: userRes } = await supaUser.auth.getUser();
+  if (!userRes?.user) return new Response("unauthorized", { status: 401 });
+  const userId = userRes.user.id;
+
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supa = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const body = await req.json().catch(() => null) as Req | null;
+  if (!body) return new Response("bad json", { status: 400 });
+
+  const { data: ch } = await supa
+    .from("notification_channels")
+    .select("*")
+    .eq("id", body.channel_id)
+    .single();
+  if (!ch || ch.user_id !== userId) return new Response("not found", { status: 404 });
+
+  if (body.action === "start")   return await startVerification(supa, ch);
+  if (body.action === "confirm") return await confirmVerification(supa, ch, body.code);
+  return new Response("bad action", { status: 400 });
+});
+
+async function startVerification(
+  // deno-lint-ignore no-explicit-any
+  supa: any,
+  ch: { id: string; type: string; config: Record<string, unknown> },
+): Promise<Response> {
+  const code = generateCode(6);
+  const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+  await supa.from("notification_channels").update({
+    verification_code: code,
+    verification_expires_at: expires,
+  }).eq("id", ch.id);
+
+  if (ch.type === "telegram") {
+    const botUsername = Deno.env.get("TELEGRAM_BOT_USERNAME") ?? "";
+    return Response.json({
+      ok: true,
+      code,
+      instructions: "Send `/link CODE` to the bot, or tap the deep link.",
+      deeplink: botUsername ? `https://t.me/${botUsername}?start=${code}` : null,
+      expires_in_seconds: 900,
+    });
+  }
+
+  if (ch.type === "sms_twilio") {
+    const phone = (ch.config as { phone?: string }).phone;
+    const sid = Deno.env.get("TWILIO_ACCOUNT_SID");
+    const tok = Deno.env.get("TWILIO_AUTH_TOKEN");
+    const from = Deno.env.get("TWILIO_FROM_NUMBER");
+    if (!phone || !sid || !tok || !from) {
+      return Response.json({ ok: false, error: "Twilio not configured" }, { status: 400 });
+    }
+    const params = new URLSearchParams({
+      To: phone, From: from,
+      Body: `Your Slickdeals Alerts verification code: ${code}`,
+    });
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Basic " + btoa(`${sid}:${tok}`),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      },
+    );
+    if (!res.ok) {
+      return Response.json({ ok: false, error: `twilio ${res.status}` }, { status: 400 });
+    }
+    return Response.json({
+      ok: true,
+      instructions: "Check your phone for a 6-character code.",
+      expires_in_seconds: 900,
+    });
+  }
+
+  // Other channels (ntfy, pushover, discord, email, webhook): no out-of-band verification.
+  // Auto-verify; user can hit "Send test" from settings to confirm it works.
+  await supa.from("notification_channels").update({
+    verified_at: new Date().toISOString(),
+    verification_code: null,
+    verification_expires_at: null,
+  }).eq("id", ch.id);
+  return Response.json({ ok: true, auto_verified: true });
+}
+
+async function confirmVerification(
+  // deno-lint-ignore no-explicit-any
+  supa: any,
+  ch: { id: string; verification_code: string | null; verification_expires_at: string | null },
+  code: string,
+): Promise<Response> {
+  if (!ch.verification_code || ch.verification_code !== code) {
+    return Response.json({ ok: false, error: "invalid code" }, { status: 400 });
+  }
+  if (ch.verification_expires_at &&
+      new Date(ch.verification_expires_at).getTime() < Date.now()) {
+    return Response.json({ ok: false, error: "expired" }, { status: 400 });
+  }
+  await supa.from("notification_channels").update({
+    verified_at: new Date().toISOString(),
+    verification_code: null,
+    verification_expires_at: null,
+  }).eq("id", ch.id);
+  return Response.json({ ok: true });
+}
+
+function generateCode(len: number): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const buf = new Uint8Array(len);
+  crypto.getRandomValues(buf);
+  let out = "";
+  for (let i = 0; i < len; i++) out += chars[buf[i]! % chars.length];
+  return out;
+}

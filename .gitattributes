@@ -1,0 +1,20 @@
+# Normalize line endings to LF for all text files in the repo.
+# Windows checkouts will still see CRLF in their working tree if core.autocrlf=true,
+# but the stored blobs will be LF — keeping diffs sane across OS.
+* text=auto eol=lf
+
+# Explicit overrides for files that MUST be LF (shell scripts, Dockerfile).
+*.sh        text eol=lf
+*.bash      text eol=lf
+Dockerfile  text eol=lf
+*.toml      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# Binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary

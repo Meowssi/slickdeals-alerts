@@ -1,0 +1,162 @@
+// Unified feed: latest matches across all alerts, with read/saved/dismissed state.
+
+import Link from "next/link";
+import { supabaseServer } from "@/lib/supabase/server";
+import { humanAgo, formatPrice } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
+
+interface FeedRow {
+  match_id: number;
+  matched_at: string;
+  alert_id: string;
+  alert_name: string;
+  deal_id: number;
+  title: string;
+  url: string;
+  price: number | null;
+  store: string | null;
+  thumbnail_url: string | null;
+  rss_pub_at: string | null;
+  saved: boolean;
+  dismissed: boolean;
+  read_at: string | null;
+}
+
+export default async function FeedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
+  const supa = await supabaseServer();
+  const { filter } = await searchParams;
+
+  // Fetch matches joined to deal + alert + state.
+  let q = supa
+    .from("alert_matches")
+    .select(`
+      id, matched_at, alert_id, deal_id,
+      alerts!inner(id, name),
+      deals!inner(id, title, url, price, store, thumbnail_url, rss_pub_at),
+      deal_state(saved, dismissed, read_at)
+    `)
+    .order("matched_at", { ascending: false })
+    .limit(200);
+
+  // Filters are applied client-ish via SQL; "saved" / "dismissed" / "unread"
+  if (filter === "saved") {
+    q = q.eq("deal_state.saved", true);
+  } else if (filter === "unread") {
+    q = q.is("deal_state.read_at", null);
+  }
+
+  const { data, error } = await q;
+  if (error) return <p className="text-red-600">{error.message}</p>;
+
+  // deno-lint-ignore no-explicit-any
+  const rows: FeedRow[] = (data ?? []).map((r: any) => ({
+    match_id: r.id,
+    matched_at: r.matched_at,
+    alert_id: r.alerts.id,
+    alert_name: r.alerts.name,
+    deal_id: r.deals.id,
+    title: r.deals.title,
+    url: r.deals.url,
+    price: r.deals.price,
+    store: r.deals.store,
+    thumbnail_url: r.deals.thumbnail_url,
+    rss_pub_at: r.deals.rss_pub_at,
+    saved: r.deal_state?.[0]?.saved ?? false,
+    dismissed: r.deal_state?.[0]?.dismissed ?? false,
+    read_at: r.deal_state?.[0]?.read_at ?? null,
+  })).filter((r: FeedRow) => filter === "dismissed" ? r.dismissed : !r.dismissed);
+
+  return (
+    <div>
+      <header className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Feed</h1>
+        <div className="flex gap-1 text-sm">
+          <FilterTab label="All"       href="/" active={!filter} />
+          <FilterTab label="Unread"    href="/?filter=unread" active={filter === "unread"} />
+          <FilterTab label="Saved"     href="/?filter=saved" active={filter === "saved"} />
+          <FilterTab label="Dismissed" href="/?filter=dismissed" active={filter === "dismissed"} />
+        </div>
+      </header>
+
+      {rows.length === 0 ? (
+        <div className="card p-8 text-center text-neutral-500">
+          <p className="mb-2">No matches yet.</p>
+          <p className="text-sm">
+            Once your alerts find a deal, it&apos;ll show up here in real time.
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((r) => (
+            <li key={r.match_id}>
+              <FeedItem row={r} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function FilterTab({ label, href, active }: {
+  label: string; href: string; active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={
+        "px-3 py-1 rounded-md " +
+        (active
+          ? "bg-neutral-900 text-white"
+          : "text-neutral-600 hover:bg-neutral-100")
+      }
+    >
+      {label}
+    </Link>
+  );
+}
+
+function FeedItem({ row }: { row: FeedRow }) {
+  const unread = !row.read_at;
+  return (
+    <Link href={`/deal/${row.deal_id}`} className="block">
+      <article className={
+        "card p-4 flex gap-4 hover:shadow-md transition " +
+        (unread ? "border-l-4 border-l-brand-500" : "")
+      }>
+        {row.thumbnail_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={row.thumbnail_url}
+            alt=""
+            className="w-16 h-16 object-contain rounded bg-neutral-100"
+          />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            {row.price != null && (
+              <span className="text-lg font-semibold text-brand-600">
+                {formatPrice(row.price)}
+              </span>
+            )}
+            {row.store && <span className="text-sm text-neutral-500">@ {row.store}</span>}
+            {row.saved && <span className="ml-auto text-xs text-amber-600">★ saved</span>}
+          </div>
+          <h3 className="font-medium truncate">{row.title}</h3>
+          <div className="text-xs text-neutral-500 mt-1 flex gap-3">
+            <span>{row.alert_name}</span>
+            <span>•</span>
+            <span>Posted {humanAgo(row.rss_pub_at)}</span>
+            <span>•</span>
+            <span>Matched {humanAgo(row.matched_at)}</span>
+          </div>
+        </div>
+      </article>
+    </Link>
+  );
+}

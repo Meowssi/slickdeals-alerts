@@ -1,0 +1,25 @@
+name: DB migrate (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "yes" to apply migrations to PROD'
+        required: true
+        default: "no"
+
+jobs:
+  migrate:
+    if: ${{ github.event.inputs.confirm == 'yes' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Link project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
+      - name: Apply migrations
+        run: supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }

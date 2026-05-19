@@ -1,3 +1,3 @@
-export * from "./types.js";
-export * from "./rss.js";
-export * from "./providers.js";
+export * from "./types";
+export * from "./rss";
+export * from "./providers";

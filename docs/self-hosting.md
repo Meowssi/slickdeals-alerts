@@ -1,184 +1,452 @@
 # Self-hosting
 
-For coworkers who'd rather run their own stack instead of using the shared instance.
+Stand up your own copy of Slickdeals Alerts. Designed for **zero local CLIs** — everything runs in browsers, GitHub Actions, and remote APIs. You don't install Node, Supabase CLI, flyctl, or vercel locally unless you want to.
 
-> ⏱️ Total time: ~45 minutes including account signups. Most of it is waiting for free-tier provisioning.
+> ⏱️ **Total time:** ~10-15 min via the 1-click path, or ~45-60 min via the manual path below.
+> 💵 **Cost:** $0/month on free tiers for small workloads. Optional channels (Pushover, Twilio, Resend) add their own costs only if you enable them.
 
-## Prerequisites
+---
 
-Install these once:
+## 🚀 Fast path (1-click)
 
-| Tool | Purpose | Install |
+This is the recommended path for most people:
+
+1. Click **[Deploy with Vercel](../README.md#-1-click-deploy)** in the README.
+2. Vercel walks you through the Supabase integration — it provisions a fresh Supabase project for you and auto-fills `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, etc.
+3. Paste **one** env var: `ADMIN_EMAILS` (your email, comma-separated for multiple admins).
+4. Vercel deploys (~2 min).
+5. **Open `https://<your-vercel-domain>/admin/setup`** — the wizard's "Live checks" section shows what's still missing. Run each form in order. The wizard handles vault setup, edge function deploy, auth redirect URLs, Telegram bot wiring, optional channels — everything.
+
+After this you can skip the rest of this doc. The remaining sections are the manual fallback if the button fails, or if you want full control.
+
+To unlock the wizard's workflow-trigger actions (`Apply migrations`, `Redeploy edge functions`), also set these env vars in Vercel:
+- `SUPABASE_ACCESS_TOKEN` — [generate one](https://supabase.com/dashboard/account/tokens)
+- `GITHUB_TOKEN` — a GitHub personal access token with `repo + workflow` scopes
+- `GITHUB_REPO` — `<your-username>/slickdeals-alerts`
+
+These are optional but recommended.
+
+---
+
+## What you'll have at the end
+
+- A Supabase project (Postgres + auth + 4 edge functions)
+- A Telegram bot that pushes deal notifications (and/or any other channel you pick)
+- A Fly.io machine polling Slickdeals RSS every minute
+- A Vercel-hosted Next.js dashboard your users sign in to
+- A `/admin/setup` health page that tells you what's wired and what's not
+
+---
+
+## Table of contents
+
+- [Prereqs](#prereqs)
+- [Phase 1 — Supabase project](#phase-1--supabase-project)
+- [Phase 2 — Fork & GitHub secrets](#phase-2--fork--github-secrets)
+- [Phase 3 — Notification channels](#phase-3--notification-channels)
+  - [Telegram](#telegram-recommended) (recommended)
+  - [SMS via Twilio](#sms-via-twilio)
+  - [Pushover](#pushover)
+  - [ntfy.sh](#ntfysh)
+  - [Discord](#discord)
+  - [Email via Resend](#email-via-resend)
+  - [Generic webhook](#generic-webhook)
+- [Phase 4 — Poller on Fly.io](#phase-4--poller-on-flyio)
+- [Phase 5 — Dashboard on Vercel](#phase-5--dashboard-on-vercel)
+- [Phase 6 — Connect everything](#phase-6--connect-everything)
+- [Verify with the setup page](#verify-with-the-setup-page)
+- [Add your first alert](#add-your-first-alert)
+- [Invite users](#invite-users)
+- [Troubleshooting](#troubleshooting)
+- [Updating](#updating)
+- [Advanced: local dev for contributors](#advanced-local-dev-for-contributors)
+
+---
+
+## Prereqs
+
+Just accounts. No software to install (`curl` is built into Windows 10+, macOS, and every Linux).
+
+| Service | Required for | Free tier |
 |---|---|---|
-| Node 20+ | Runtime | https://nodejs.org |
-| pnpm 9+ | Package manager | `npm install -g pnpm` |
-| Supabase CLI | DB + edge functions | https://supabase.com/docs/guides/cli |
-| Fly CLI (`flyctl`) | Poller deploy | https://fly.io/docs/hands-on/install-flyctl/ |
-| Vercel CLI | Dashboard deploy | `npm install -g vercel` |
-| GitHub CLI (`gh`) | Optional, for secrets | https://cli.github.com |
+| **[GitHub](https://github.com)** | Code + CI | Always free |
+| **[Supabase](https://supabase.com)** | DB + auth + edge functions | 500 MB DB, 50k MAU, 500k function invocations/mo |
+| **[Fly.io](https://fly.io)** | Poller runtime | 3× shared-cpu-1x machines |
+| **[Vercel](https://vercel.com)** | Dashboard | Hobby plan free |
+| **[Telegram](https://telegram.org)** | (Most popular channel) | Always free |
 
-## Accounts you'll need
+Optional channels — sign up only for the ones you want:
+[Twilio](https://www.twilio.com) (SMS), [Pushover](https://pushover.net) ($5 one-time), [Resend](https://resend.com) (email).
 
-| Service | Purpose | Free tier covers |
-|---|---|---|
-| **GitHub** | Code host | Always free for private repos |
-| **Supabase** | DB + auth + edge functions | 500MB DB, 50K MAU, 500K function invocations/mo |
-| **Fly.io** | Poller runtime | 3× shared-cpu-1x machines |
-| **Vercel** | Dashboard | Hobby plan free |
-| **Telegram BotFather** | Bot token | Always free |
-| **ntfy.sh** | Push delivery | Free; self-hostable |
-| **Twilio** | (Optional) SMS | $0.008/msg, free trial credit |
-| **Pushover** | (Optional) Premium push | $5 one-time |
-| **Resend** | (Optional) Email | 3,000 emails/mo free |
+---
 
-## Step-by-step
+## Phase 1 — Supabase project
 
-### 1. Clone & install
+### 1.1 Create the project
 
-```bash
-gh repo clone YOUR_USER/slickdeals-alerts
-cd slickdeals-alerts
-pnpm install
-```
+1. Open [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**.
+2. Fill out:
+   - **Organization**: any (free tier is fine)
+   - **Project name**: `slickdeals-alerts` (anything, but match this for clarity)
+   - **GitHub (optional)**: **skip** — we use GitHub Actions for migrations, not Supabase's GitHub integration
+   - **Database password**: click **Generate a password**. **Save it** — you'll paste it into a GitHub secret in Phase 2.
+   - **Region**: pick closest to your users. (We'll co-locate Fly in the same region.)
+   - **Security**:
+     - ✓ Enable Data API
+     - ✓ Automatically expose new tables
+     - ☐ Enable automatic RLS *(leave OFF — our migrations enable RLS per-table)*
+3. Click **Create new project** and wait ~2 min for provisioning.
 
-### 2. Create a Supabase project
+### 1.2 Capture your keys
 
-1. https://supabase.com/dashboard → New project.
-2. Save the project ref (in the URL) and DB password somewhere safe.
-3. Link the CLI:
-   ```bash
-   supabase link --project-ref YOUR_REF --password 'YOUR_DB_PASSWORD'
-   ```
+Once provisioning finishes, grab these from **Settings → API**:
 
-### 3. Push the schema
-
-```bash
-supabase db push --password 'YOUR_DB_PASSWORD'
-```
-
-This applies the four migrations under `supabase/migrations/`.
-
-### 4. Create the Telegram bot
-
-1. Open Telegram, message **@BotFather**.
-2. Send `/newbot`. Pick a name and username (must end in `Bot`).
-3. Save the token. Note the username (without leading `@`).
-
-### 5. Set Supabase function secrets
-
-```bash
-supabase secrets set \
-  TELEGRAM_BOT_TOKEN="123:ABC" \
-  TELEGRAM_BOT_USERNAME="YourBotName" \
-  TELEGRAM_WEBHOOK_SECRET="$(openssl rand -hex 32)" \
-  --project-ref YOUR_REF
-```
-
-For each optional channel you want to enable, also set:
-
-| Channel | Secrets |
+| Label in dashboard | Save as |
 |---|---|
-| SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` |
-| Pushover | `PUSHOVER_APP_TOKEN` |
-| Email | `RESEND_API_KEY`, `EMAIL_FROM_ADDRESS` |
-| Self-hosted ntfy | `NTFY_BASE_URL` |
+| Project URL (`https://xxx.supabase.co`) | `SUPABASE_URL` |
+| Project ref (the `xxx` part of the URL) | `SUPABASE_PROJECT_REF` |
+| `anon` `public` (legacy JWT) — OR — the new `sb_publishable_…` key | `SUPABASE_ANON_KEY` *(or publishable equivalent — supabase-js accepts either)* |
+| `service_role` `secret` (legacy JWT) | `SUPABASE_SERVICE_ROLE_KEY` *(treat like a password)* |
 
-### 6. Deploy edge functions
+And generate a personal-access token at [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) → **Generate new token** → save as `SUPABASE_ACCESS_TOKEN`.
 
-```bash
-supabase functions deploy notifier         --project-ref YOUR_REF --no-verify-jwt
-supabase functions deploy telegram-webhook --project-ref YOUR_REF --no-verify-jwt
-supabase functions deploy channel-verify   --project-ref YOUR_REF --no-verify-jwt
-supabase functions deploy send-test        --project-ref YOUR_REF --no-verify-jwt
-```
+### 1.3 Apply the database migrations
 
-### 7. Configure the notifier trigger
+You have two ways. Pick one.
 
-Open the Supabase SQL editor and run:
+#### Option A — GitHub Action *(zero clicks once Phase 2 is done; pick this)*
+Skip ahead to [Phase 2](#phase-2--fork--github-secrets), then come back and trigger the `db-migrate.yml` workflow as instructed there.
+
+#### Option B — Web SQL editor *(if you want to verify the schema before automation)*
+1. Supabase Dashboard → **SQL Editor** → **New query**.
+2. For each file in `supabase/migrations/` (in filename order), paste its contents and **Run**.
+3. Confirm in **Table Editor** that you see: `alerts`, `alert_matches`, `deals`, `deal_state`, `notification_channels`, `notifications_sent`, `user_settings`.
+
+### 1.4 Populate the vault secrets
+
+The notifier trigger reads `notifier_url` and `service_role_key` from Supabase Vault. Run this in **SQL Editor** (substitute your values):
 
 ```sql
-alter database postgres
-  set "app.notifier_url" to 'https://YOUR_REF.functions.supabase.co/notifier';
+select vault.create_secret(
+  'https://YOUR_REF.functions.supabase.co/notifier',
+  'notifier_url'
+);
 
-alter database postgres
-  set "app.service_role_key" to 'YOUR_SERVICE_ROLE_KEY';
+select vault.create_secret(
+  'YOUR_SERVICE_ROLE_KEY',
+  'service_role_key'
+);
 
-select pg_reload_conf();
+-- Verify
+select name, length(decrypted_secret) as len
+from vault.decrypted_secrets order by name;
 ```
 
-Find your service role key at Supabase → Settings → API → `service_role`.
+You should see two rows: `notifier_url` (≈ 60 chars) and `service_role_key` (≈ 220 chars).
 
-### 8. Register the Telegram webhook
+> 💡 **Why not `ALTER DATABASE ... SET app.*`?** Managed Supabase Postgres blocks non-superusers from setting custom GUCs. The vault approach works for any project and is the official recommendation.
 
-```bash
-SECRET="<the TELEGRAM_WEBHOOK_SECRET you generated>"
-TOKEN="<your bot token>"
-curl -X POST "https://api.telegram.org/bot${TOKEN}/setWebhook" \
-  -d "url=https://YOUR_REF.functions.supabase.co/telegram-webhook?secret=${SECRET}"
-```
+---
 
-Confirm with `getWebhookInfo`.
+## Phase 2 — Fork & GitHub secrets
 
-### 9. Deploy the poller to Fly
+### 2.1 Fork the repo
 
-```bash
-cd apps/poller
-fly launch --no-deploy
-# accept defaults; this creates fly.toml entries
+1. Visit [github.com/Meowssi/slickdeals-alerts](https://github.com/Meowssi/slickdeals-alerts) → **Fork** *(or, if you have access to the original repo, just clone-and-push your own private copy).*
+2. In your fork → **Settings → Collaborators**, invite anyone who needs to contribute.
 
-fly secrets set \
-  SUPABASE_URL="https://YOUR_REF.supabase.co" \
-  SUPABASE_SERVICE_ROLE_KEY="YOUR_SERVICE_ROLE_KEY"
+### 2.2 Set repo secrets
 
-fly deploy
-fly status     # confirm machine is running
-fly logs       # tail logs
-```
+GitHub → your fork → **Settings → Secrets and variables → Actions → New repository secret**. Add all four:
 
-### 10. Deploy the dashboard to Vercel
-
-```bash
-cd ../dashboard
-vercel link
-vercel env add NEXT_PUBLIC_SUPABASE_URL              production
-vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY         production
-vercel env add NEXT_PUBLIC_TELEGRAM_BOT_USERNAME     production
-# Optional:
-vercel env add NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN      production
-vercel --prod
-```
-
-In Supabase → Authentication → URL Configuration:
-- **Site URL:** `https://<your-vercel-domain>`
-- **Redirect URLs:** `https://<your-vercel-domain>/auth/callback`
-
-### 11. Sign in and test
-
-1. Visit your Vercel URL.
-2. Sign in with email.
-3. Follow the onboarding wizard.
-4. Add one alert. Wait for a match. Confirm your phone buzzes.
-
-## CI/CD (optional but nice)
-
-Add these GitHub repo secrets so the workflows in `.github/workflows/` work:
-
-| Secret | Where to find |
+| Name | Value |
 |---|---|
-| `FLY_API_TOKEN` | `fly tokens create deploy` |
-| `SUPABASE_ACCESS_TOKEN` | https://supabase.com/dashboard/account/tokens |
-| `SUPABASE_PROJECT_REF` | Your project ref |
-| `SUPABASE_DB_PASSWORD` | The one you set at project creation |
+| `SUPABASE_PROJECT_REF` | from Phase 1.2 |
+| `SUPABASE_ACCESS_TOKEN` | from Phase 1.2 |
+| `SUPABASE_DB_PASSWORD` | from Phase 1.1 |
+| `FLY_API_TOKEN` | *deferred to Phase 4 — leave blank for now* |
 
-Vercel auto-deploys from `main` once the repo is linked.
+> 💻 **Prefer the gh CLI?** `gh secret set NAME --repo YOUR_USER/slickdeals-alerts` lets you paste the value into the prompt. Same effect.
+
+### 2.3 Trigger the initial deploys
+
+Visit your fork's **Actions** tab:
+
+1. **Apply migrations** — pick *DB migrate (manual)* → **Run workflow** → type `yes` in the confirm box → **Run**. Wait until green (≈ 30 s). *(Skip if you did Phase 1.3 Option B.)*
+2. **Deploy edge functions** — push any commit to `main`, OR pick *Deploy edge functions* → **Run workflow** → **Run**. This deploys `notifier`, `telegram-webhook`, `channel-verify`, `send-test`.
+
+You can verify in Supabase Dashboard → **Edge Functions**: all four show **ACTIVE**.
+
+---
+
+## Phase 3 — Notification channels
+
+Pick **one or more**. You can come back and add channels later. Each subsection ends with the **Supabase function secret(s)** you need to set; those go in Supabase Dashboard → **Project Settings → Edge Functions → Secrets → Add new secret**.
+
+### Telegram (recommended)
+
+Best UX: free, fast, supports inline "Save / Dismiss" buttons.
+
+**3.T.1 — Create the bot**
+1. In Telegram, open chat with [@BotFather](https://t.me/BotFather).
+2. Send `/newbot`. Pick:
+   - A **display name** (e.g. `Slickdeals Alerts`).
+   - A **username** ending in `bot` (e.g. `slickdeals_alerts_meowssi_bot`). Must be globally unique.
+3. BotFather replies with a **token** like `123456789:AAH...`. Save it.
+
+Optional polish (run anytime, any order):
+- `/setdescription` — short bio shown when users first open the bot.
+- `/setuserpic` — bot avatar.
+
+**3.T.2 — Set the function secrets**
+
+In Supabase → Edge Functions → Secrets:
+
+| Name | Value |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | `123456789:AAH...` |
+| `TELEGRAM_BOT_USERNAME` | the username without `@` |
+| `TELEGRAM_WEBHOOK_SECRET` | a random string (paste output of any password generator, or use SQL: `select encode(gen_random_bytes(32), 'hex');`) |
+
+**3.T.3 — Register the webhook**
+
+Run in any terminal that has `curl` (Windows 10+: built-in to PowerShell):
+
+```sh
+TOKEN="123456789:AAH..."
+SECRET="<the TELEGRAM_WEBHOOK_SECRET from 3.T.2>"
+REF="<your Supabase project ref>"
+curl -X POST "https://api.telegram.org/bot${TOKEN}/setWebhook" \
+  -d "url=https://${REF}.functions.supabase.co/telegram-webhook?secret=${SECRET}"
+```
+
+Expect `{"ok":true,"result":true,...}`. Verify with:
+
+```sh
+curl "https://api.telegram.org/bot${TOKEN}/getWebhookInfo"
+```
+
+→ should show your URL.
+
+### SMS via Twilio
+
+Reliable, paid (~$0.008/msg).
+
+1. Sign up at [twilio.com](https://www.twilio.com). Free trial gives credit + a test number.
+2. From the Twilio console **Account Dashboard**, note: **Account SID**, **Auth Token**, and the **trial phone number** (E.164 format like `+15551234567`).
+3. *Trial accounts can only SMS verified numbers.* Verify your phone in Twilio → **Phone Numbers → Verified Caller IDs**.
+
+In Supabase function secrets:
+
+| Name | Value |
+|---|---|
+| `TWILIO_ACCOUNT_SID` | `AC...` |
+| `TWILIO_AUTH_TOKEN` | from Twilio |
+| `TWILIO_FROM_NUMBER` | `+15551234567` |
+
+### Pushover
+
+Premium push, $5 one-time per device.
+
+1. Buy and install the [Pushover app](https://pushover.net). Note your **User Key** (each user has their own).
+2. Pushover Dashboard → **Create an Application/API Token** → name it *Slickdeals Alerts* → grab the **API Token**.
+
+In Supabase function secrets:
+
+| Name | Value |
+|---|---|
+| `PUSHOVER_APP_TOKEN` | the API token |
+
+(End users paste their own user key into the dashboard when they add the channel.)
+
+### ntfy.sh
+
+Free, open-source, no signup. End users each pick their own random topic (e.g. `slickalerts-abc12def`) and subscribe in the [ntfy app](https://ntfy.sh/app).
+
+No global secrets needed — works out of the box.
+
+### Discord
+
+Per-channel webhook. End users paste a Discord webhook URL when they add the channel.
+
+No global secrets needed.
+
+### Email via Resend
+
+3,000 emails/month free.
+
+1. Sign up at [resend.com](https://resend.com) → create an API key.
+2. Verify a sending domain (or use Resend's `onboarding@resend.dev` for testing — it limits delivery to your own email).
+
+In Supabase function secrets:
+
+| Name | Value |
+|---|---|
+| `RESEND_API_KEY` | `re_...` |
+| `EMAIL_FROM_ADDRESS` | `alerts@yourdomain.com` (or `onboarding@resend.dev`) |
+
+### Generic webhook
+
+Wire up to Zapier, IFTTT, Apple Shortcuts, home automation, etc. End users paste their own webhook URL when they add the channel.
+
+No global secrets needed.
+
+---
+
+## Phase 4 — Poller on Fly.io
+
+### 4.1 Create the Fly app via the web
+
+1. [fly.io/dashboard](https://fly.io/dashboard) → **Launch a new app**.
+2. **Connect to GitHub** → pick your fork → select `apps/poller/` as the working directory.
+3. App name: `slickdeals-alerts-poller-<your-tag>` (must be globally unique). Region: same as Supabase if possible.
+4. **Do not deploy yet** — we need secrets first.
+
+> 🪟 **Don't want Fly's GitHub integration?** Generate a Fly API token at [fly.io/user/personal_access_tokens](https://fly.io/user/personal_access_tokens) → save as `FLY_API_TOKEN` GitHub secret → the included `deploy-poller.yml` workflow handles the deploy entirely from CI.
+
+### 4.2 Set Fly secrets
+
+Fly dashboard → your app → **Secrets**:
+
+| Name | Value |
+|---|---|
+| `SUPABASE_URL` | `https://YOUR_REF.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | (from Phase 1.2) |
+
+### 4.3 Deploy
+
+Push any commit to `main` in your fork (e.g., add a line to README). The `deploy-poller.yml` workflow auto-deploys.
+
+Verify: Fly dashboard → your app → **Monitoring** → you should see periodic `polled` log lines (or `no enabled alerts` until you create your first alert).
+
+---
+
+## Phase 5 — Dashboard on Vercel
+
+### 5.1 Import your fork
+
+1. [vercel.com/new](https://vercel.com/new) → import your GitHub fork.
+2. **Root Directory**: `apps/dashboard`.
+3. **Framework Preset**: Next.js (auto-detected).
+4. **Environment Variables** — add all (Production scope):
+
+| Name | Value |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://YOUR_REF.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | from Phase 1.2 |
+| `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` | from Phase 3.T.1 *(skip if not using Telegram)* |
+| `NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN` | (optional) restrict sign-ups, e.g. `yourcompany.com` |
+| `SUPABASE_SERVICE_ROLE_KEY` | from Phase 1.2 *(server-only — never exposed to browser)* |
+| `SUPABASE_ACCESS_TOKEN` | from Phase 1.2 *(for `/admin/setup` health checks)* |
+| `SUPABASE_PROJECT_REF` | from Phase 1.2 |
+| `TELEGRAM_BOT_TOKEN` | from Phase 3.T.1 *(skip if not using Telegram — used only by `/admin/setup` to query webhook info)* |
+| `ADMIN_EMAILS` | comma-separated emails allowed to view `/admin/setup` |
+
+5. **Deploy**. Note the production URL Vercel prints.
+
+---
+
+## Phase 6 — Connect everything
+
+### 6.1 Add the Vercel URL to Supabase auth
+
+Without this, magic-link sign-in won't redirect properly.
+
+Supabase Dashboard → **Authentication → URL Configuration**:
+
+- **Site URL**: `https://<your-vercel-domain>`
+- **Redirect URLs (Add URL)**: `https://<your-vercel-domain>/auth/callback`
+
+### 6.2 Add the Telegram webhook (if not done in Phase 3.T.3)
+
+Skip if you already registered it.
+
+---
+
+## Verify with the setup page
+
+1. Visit `https://<your-vercel-domain>/admin/setup`.
+2. Sign in with an email listed in `ADMIN_EMAILS`.
+3. The page runs live checks against your stack:
+
+| Check | What it confirms |
+|---|---|
+| DB migrations | All ≥ 6 migrations applied |
+| Edge functions | `notifier`, `telegram-webhook`, `channel-verify`, `send-test` all ACTIVE |
+| Vault secrets | `notifier_url` and `service_role_key` populated |
+| Telegram webhook | `getWebhookInfo` returns your function URL *(only checked if `TELEGRAM_BOT_TOKEN` is set)* |
+| Poller heartbeat | Poller logged activity in the last 5 min |
+| Optional channels | Each channel's required Supabase function secrets are present |
+
+Each failing check links back to the matching section of this doc.
+
+---
+
+## Add your first alert
+
+1. Open [slickdeals.net](https://slickdeals.net), apply any search filters you like.
+2. Click the **orange RSS icon** on the search results page. Copy the URL.
+3. In your dashboard → **+ New alert** → paste the URL. Give it a name. Save.
+4. Within ~1 minute of a matching deal posting, you'll get a notification on whichever channels you connected.
+
+---
+
+## Invite users
+
+1. Share your Vercel dashboard URL.
+2. Point them at [`docs/getting-started.md`](getting-started.md) — that's the user-facing guide.
+3. They sign in with their email, pick channels, add their own alerts.
+4. If you set `NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN`, only matching emails will be accepted.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely fix |
+|---|---|
+| `/admin/setup` shows "Migrations: 0" | Phase 2.3 step 1 wasn't run. Trigger the `DB migrate (manual)` workflow. |
+| `/admin/setup` shows "Functions: 0" | Phase 2.3 step 2 wasn't run. Trigger the `Deploy edge functions` workflow. |
+| `/admin/setup` shows "Vault: missing" | Phase 1.4 wasn't run. Paste the SQL into the Supabase SQL Editor. |
+| Matches show in the feed but no notification | Vault is missing — same as above. Notifier trigger silently no-ops without `notifier_url`. |
+| Telegram `/start` doesn't respond | Webhook not registered. Re-run Phase 3.T.3 curl. Verify with `getWebhookInfo`. |
+| Magic-link sign-in lands on an error page | Phase 6.1 not done. Add the callback URL to Supabase Auth allow-list. |
+| Poller logs `no enabled alerts` forever | No alerts created yet, or all alerts have `enabled = false`. |
+| SMS verification code never arrives | Twilio trial accounts only SMS *verified* numbers. Add yours in Twilio → Verified Caller IDs. |
+| Pushover priority-2 notifications loop | That's correct — emergency priority bypasses DND and re-alerts every 60s for 30 min. Use sparingly. |
+
+For deeper digs, see [`docs/operating.md`](operating.md) and [`docs/troubleshooting.md`](troubleshooting.md).
+
+---
 
 ## Updating
 
-```bash
-git pull
+Pull latest from upstream into your fork, then push to `main`. The workflows handle the rest:
+
+- New `supabase/migrations/` files → run `DB migrate (manual)` workflow.
+- New `supabase/functions/` code → `Deploy edge functions` workflow fires automatically on push.
+- New `apps/poller/` code → `Deploy poller` workflow fires automatically on push.
+- New `apps/dashboard/` code → Vercel deploys automatically on push.
+
+---
+
+## Advanced: local dev for contributors
+
+You don't need any of this to operate the stack. Only contributors editing code locally.
+
+```sh
+# One-time:
+npm install -g pnpm
 pnpm install
-supabase db push                    # if there are new migrations
-pnpm fns:deploy                     # if functions changed
-cd apps/poller && fly deploy        # if poller changed
-# dashboard auto-deploys via Vercel
+
+# Per-shell:
+pnpm dev:dashboard   # http://localhost:3000
+pnpm dev:poller      # in another terminal
 ```
+
+A local Supabase stack (`supabase start` from the CLI) is optional — you can also point local dev at your remote Supabase project by setting the same env vars from Phase 5.
+
+---
+
+## License
+
+Private — internal use only. No license granted.

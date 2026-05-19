@@ -1,6 +1,8 @@
 // Supabase server-side client (App Router). Uses Next.js cookies for the session.
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+
+type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
 export async function supabaseServer() {
   const cookieStore = await cookies();
@@ -10,7 +12,7 @@ export async function supabaseServer() {
     {
       cookies: {
         getAll() { return cookieStore.getAll(); },
-        setAll(toSet) {
+        setAll(toSet: CookieToSet[]) {
           try {
             toSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options));

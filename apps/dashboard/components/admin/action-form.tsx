@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import type { ActionResult } from "@/lib/admin-actions";
 
 interface Field {
@@ -34,7 +34,9 @@ export function ActionForm({
   singleButton,
   successHint,
 }: ActionFormProps) {
-  const [result, formAction, pending] = useActionState<ActionResult | null, FormData>(action, null);
+  // useFormState is the React 18 / react-dom equivalent of React 19's useActionState.
+  // It returns [state, formAction]; pending state is read via useFormStatus inside the form.
+  const [result, formAction] = useFormState<ActionResult | null, FormData>(action, null);
 
   return (
     <section className="card p-5 space-y-3">
@@ -65,14 +67,8 @@ export function ActionForm({
           </div>
         ))}
 
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-md bg-neutral-900 text-white text-sm font-medium px-4 py-1.5 hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {pending ? "Working…" : submitLabel}
-          </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <SubmitButton label={submitLabel} />
 
           {result && (
             <span className={`text-sm ${result.ok ? "text-emerald-700" : "text-red-700"}`}>
@@ -85,5 +81,19 @@ export function ActionForm({
         </div>
       </form>
     </section>
+  );
+}
+
+// useFormStatus must be used inside a <form>, so we read pending state via a child component.
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="rounded-md bg-neutral-900 text-white text-sm font-medium px-4 py-1.5 hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {pending ? "Working…" : label}
+    </button>
   );
 }

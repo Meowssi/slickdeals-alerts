@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AlertPriority } from "@slickalerts/shared";
+import type { AlertPriority } from "@slickalerts/shared/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 interface AlertFormProps {

@@ -2,7 +2,7 @@
 // Used by the alert form's "Test fetch" button.
 
 import { NextResponse } from "next/server";
-import { parseRss } from "@slickalerts/shared";
+import { parseRss } from "@slickalerts/shared/rss";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {

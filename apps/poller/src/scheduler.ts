@@ -5,7 +5,7 @@
 // - Sleep `pollIntervalSeconds` between ticks.
 // - Per-alert exponential backoff is encoded in `consecutive_errors`.
 
-import { dealMatchesAlert, parseRss } from "@slickalerts/shared";
+import { dealMatchesAlert, parseRss } from "@slickalerts/shared/rss";
 import { config } from "./config.js";
 import { fetchFeed } from "./fetcher.js";
 import { log } from "./log.js";

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PROVIDER_CATALOG, getProviderMeta, type NotificationChannelRow, type UserSettingsRow } from "@slickalerts/shared";
+import { PROVIDER_CATALOG, getProviderMeta } from "@slickalerts/shared/providers";
+import type { NotificationChannelRow, UserSettingsRow } from "@slickalerts/shared/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { ChannelForm } from "@/components/channel-form";
 

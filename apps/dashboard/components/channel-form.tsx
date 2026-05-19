@@ -3,7 +3,7 @@
 // Single channel creation + verification form. Reused by setup wizard and Settings.
 
 import { useEffect, useState } from "react";
-import type { ProviderMeta } from "@slickalerts/shared";
+import type { ProviderMeta } from "@slickalerts/shared/providers";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Phase =

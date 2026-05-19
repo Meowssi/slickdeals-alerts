@@ -1,7 +1,7 @@
 // Supabase data access for the poller. Uses the service role key, bypasses RLS.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { AlertRow, DealItem } from "@slickalerts/shared";
+import type { AlertRow, DealItem } from "@slickalerts/shared/types";
 import { config } from "./config.js";
 import { log } from "./log.js";
 

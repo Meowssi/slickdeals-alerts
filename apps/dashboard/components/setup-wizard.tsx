@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PROVIDER_CATALOG, type ProviderMeta } from "@slickalerts/shared";
+import { PROVIDER_CATALOG, type ProviderMeta } from "@slickalerts/shared/providers";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Step =

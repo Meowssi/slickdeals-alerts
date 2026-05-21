@@ -15,6 +15,10 @@ export interface Notification {
   silent: boolean;
   /** Inline buttons (Telegram-style). Providers without button support ignore these. */
   actions?: Array<{ label: string; url?: string; callback?: string }>;
+  /** Image for providers that show media (Telegram sendPhoto, etc.). */
+  thumbnailUrl?: string | null;
+  /** Deal id, used by interactive providers for save/dismiss callbacks. */
+  dealId?: number;
 }
 
 export interface SendResult {

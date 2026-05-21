@@ -72,11 +72,13 @@ Deno.serve(async (req) => {
     3;
 
   const notification: Notification = {
-    title: `${alert.name}: ${truncate(deal.title, 80)}`,
+    title: truncate(deal.title, 140),
     body: buildBody(alert.name, deal),
     url: deal.url,
     priority,
     silent,
+    thumbnailUrl: deal.thumbnail_url ?? null,
+    dealId: deal.id,
   };
 
   const now = new Date();
@@ -137,16 +139,25 @@ function buildBody(
     rss_pub_at: string | null;
   },
 ): string {
-  const lines: string[] = [];
-  if (deal.price != null) {
-    lines.push(deal.store ? `$${deal.price.toFixed(2)} @ ${deal.store}` : `$${deal.price.toFixed(2)}`);
-  } else if (deal.store) {
-    lines.push(`@ ${deal.store}`);
-  }
-  lines.push(deal.title);
-  if (deal.rss_pub_at) lines.push(`Posted ${humanAgo(new Date(deal.rss_pub_at))}`);
-  lines.push(`(${alertName})`);
-  return lines.join("\n");
+  // Body is everything BUT the title (the title is shown separately above by
+  // each provider). Keep it tight: price line + footer with alert + posted-ago.
+  const parts: string[] = [];
+  const priceLine = formatPriceLine(deal.price, deal.store);
+  if (priceLine) parts.push(priceLine);
+  const footer = [
+    alertName,
+    deal.rss_pub_at ? humanAgo(new Date(deal.rss_pub_at)) : null,
+  ].filter(Boolean).join(" · ");
+  if (footer) parts.push(footer);
+  return parts.join("\n");
+}
+
+function formatPriceLine(price: number | null, store: string | null): string {
+  if (price == null && !store) return "";
+  const p = price != null ? `$${price.toFixed(2)}` : "";
+  if (!store) return p;
+  if (!p)     return `at ${store}`;
+  return `${p} at ${store}`;
 }
 
 function truncate(s: string, n: number): string {

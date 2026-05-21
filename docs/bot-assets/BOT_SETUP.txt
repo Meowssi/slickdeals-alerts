@@ -1,0 +1,91 @@
+============================================================
+TELEGRAM BOT POLISH — copy/paste guide
+============================================================
+
+Images are in this same folder:
+  bot-pic.png         (512x512)  — upload as the bot's profile picture
+  description-pic.png (640x360)  — upload as the description picture
+
+Each section below has:
+  - the BotFather command to send
+  - the text to paste (copy everything between the ---PASTE--- markers)
+
+
+------------------------------------------------------------
+1. PROFILE PICTURE
+------------------------------------------------------------
+BotFather command:    /setuserpic
+Then send:            bot-pic.png as a regular image (drag-drop or attach)
+
+
+------------------------------------------------------------
+2. DESCRIPTION PICTURE (banner shown in empty chat)
+------------------------------------------------------------
+BotFather command:    /setdescriptionpic
+Then send:            description-pic.png as a regular image
+
+
+------------------------------------------------------------
+3. ABOUT TEXT  (short — max 120 chars)
+------------------------------------------------------------
+BotFather command:    /setabouttext
+
+---PASTE---
+Real-time Slickdeals deal alerts. Powered by self-hosted slickdeals-alerts.
+---PASTE---
+
+
+------------------------------------------------------------
+4. DESCRIPTION  (longer — max 512 chars, shown above the START button)
+------------------------------------------------------------
+BotFather command:    /setdescription
+
+---PASTE---
+👋 Hi! I send real-time Slickdeals deal alerts.
+
+If you got here from a dashboard's setup wizard, tap START to finish linking your account.
+
+Want your own? Self-host at github.com/Meowssi/slickdeals-alerts
+
+Commands:
+/link CODE — link this chat to a dashboard
+/help — show how to use the bot
+---PASTE---
+
+
+------------------------------------------------------------
+5. COMMANDS  (shown in Telegram's "/" menu)
+------------------------------------------------------------
+BotFather command:    /setcommands
+Pick your bot, then paste exactly:
+
+---PASTE---
+link - Link this chat to your dashboard (use: /link CODE)
+help - Show how to connect this chat
+---PASTE---
+
+
+------------------------------------------------------------
+6. PRIVACY POLICY  (optional)
+------------------------------------------------------------
+For a personal / small-team deployment you don't strictly need one.
+
+If you want one:
+  a) Drop a PRIVACY.md in the repo at github.com/Meowssi/slickdeals-alerts.
+  b) Optionally add a /privacy command in supabase/functions/telegram-webhook/index.ts
+     that replies with the URL to that PRIVACY.md.
+  c) Reference the URL in your bot description above.
+
+Skip this for now unless you plan to list the bot publicly in Telegram's
+bot directory.
+
+
+============================================================
+WHERE TO SET ALL THIS
+
+Open Telegram → @BotFather → /mybots → pick your bot →
+either the "Edit bot" inline menu (you already found it) or send
+the commands above one at a time in the BotFather chat.
+
+After you save each one, BotFather replies "Success!" — that's it.
+============================================================

@@ -14,6 +14,8 @@ import { PROVIDER_CATALOG, type ProviderMeta } from "@slickalerts/shared/provide
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { NtfyWalkthrough } from "@/components/wizards/ntfy-walkthrough";
 import { TelegramWalkthrough } from "@/components/wizards/telegram-walkthrough";
+import { DiscordWalkthrough } from "@/components/wizards/discord-walkthrough";
+import { PushoverWalkthrough } from "@/components/wizards/pushover-walkthrough";
 
 type Step =
   | { kind: "welcome" }
@@ -200,7 +202,7 @@ function ConfigureChannel(props: {
   if (!meta) return <p>Unknown provider.</p>;
 
   // Per-channel walkthroughs render their own headings.
-  const hasOwnHeader = meta.type === "ntfy" || meta.type === "telegram";
+  const hasOwnHeader = meta.type === "ntfy" || meta.type === "telegram" || meta.type === "discord" || meta.type === "pushover";
 
   return (
     <>
@@ -231,6 +233,12 @@ function ChannelForm(props: {
   }
   if (props.meta.type === "telegram") {
     return <TelegramWalkthrough onDone={props.onDone} onSkip={props.onSkip} isAdmin={props.isAdmin} />;
+  }
+  if (props.meta.type === "discord") {
+    return <DiscordWalkthrough onDone={props.onDone} onSkip={props.onSkip} />;
+  }
+  if (props.meta.type === "pushover") {
+    return <PushoverWalkthrough onDone={props.onDone} onSkip={props.onSkip} isAdmin={props.isAdmin} />;
   }
   return <GenericChannelForm meta={props.meta} onDone={props.onDone} onSkip={props.onSkip} />;
 }

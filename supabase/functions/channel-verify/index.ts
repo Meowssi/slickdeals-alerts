@@ -142,7 +142,19 @@ async function startVerification(
     });
   }
 
-  // Other channels (ntfy, pushover, discord, email, webhook): no out-of-band verification.
+  // Pushover requires a deployer-side PUSHOVER_APP_TOKEN (free, registered at pushover.net).
+  // Block here so the user wizard can surface "ask your admin" instead of silently
+  // auto-verifying a channel that won't actually send.
+  if (ch.type === "pushover" && !Deno.env.get("PUSHOVER_APP_TOKEN")) {
+    return Response.json({
+      ok: false,
+      error: "pushover_not_configured",
+      needs_admin: true,
+      message: "Your deployer needs to register a Pushover application (free). See /admin/setup.",
+    }, { status: 400 });
+  }
+
+  // Other channels (ntfy, discord, email, webhook): no out-of-band verification.
   // Auto-verify; user can hit "Send test" from settings to confirm it works.
   await supa.from("notification_channels").update({
     verified_at: new Date().toISOString(),

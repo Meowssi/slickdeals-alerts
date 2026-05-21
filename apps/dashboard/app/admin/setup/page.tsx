@@ -11,6 +11,7 @@ import {
 } from "@/lib/admin-actions";
 import { ActionForm } from "@/components/admin/action-form";
 import { AdminTelegramSetup } from "@/components/admin/telegram-setup";
+import { AdminPushoverSetup } from "@/components/admin/pushover-setup";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
@@ -123,12 +124,7 @@ export default async function AdminSetupPage() {
           ]}
         />
 
-        <ChannelSecretForm
-          title="Pushover (optional)"
-          fields={[
-            { name: "PUSHOVER_APP_TOKEN", label: "App Token", type: "password", required: true, help: "Get this from pushover.net → Create an Application/API Token." },
-          ]}
-        />
+        <AdminPushoverSetup action={setProjectSecretsAction} />
 
         <ChannelSecretForm
           title="Email via Resend (optional)"

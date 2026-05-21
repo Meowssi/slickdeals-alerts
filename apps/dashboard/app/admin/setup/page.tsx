@@ -115,24 +115,16 @@ export default async function AdminSetupPage() {
       <Group title="3. Notification channels" description="Set up each channel you want to support. Skip what you don't need.">
         <AdminTelegramSetup action={setupTelegramAction} />
 
-        <ChannelSecretForm
-          title="Twilio SMS (optional)"
-          fields={[
-            { name: "TWILIO_ACCOUNT_SID",  label: "Account SID",   placeholder: "AC...", required: true },
-            { name: "TWILIO_AUTH_TOKEN",   label: "Auth Token",    type: "password", required: true },
-            { name: "TWILIO_FROM_NUMBER",  label: "From number",   placeholder: "+15551234567", required: true, help: "E.164 format. Trial accounts can only SMS verified numbers." },
-          ]}
-        />
-
         <AdminPushoverSetup action={setProjectSecretsAction} />
 
-        <ChannelSecretForm
-          title="Email via Resend (optional)"
-          fields={[
-            { name: "RESEND_API_KEY",     label: "API key",            placeholder: "re_...", type: "password", required: true },
-            { name: "EMAIL_FROM_ADDRESS", label: "From address",       placeholder: "alerts@yourdomain.com", required: true, help: "Use a verified domain, or onboarding@resend.dev for testing." },
-          ]}
-        />
+        <section className="card p-5 space-y-1 bg-neutral-50">
+          <h3 className="font-semibold text-sm text-neutral-700">Twilio SMS &amp; Resend Email — per-user</h3>
+          <p className="text-xs text-neutral-600">
+            These channels were moved to per-user setup. Each user signs up for their own Twilio / Resend
+            account in the user wizard at <code className="bg-white px-1 rounded">/setup</code> — they get
+            billed for their own usage, you don&apos;t pay anything. No admin action needed.
+          </p>
+        </section>
       </Group>
 
       <footer className="text-xs text-neutral-500 pt-4 border-t border-neutral-200 space-y-1">

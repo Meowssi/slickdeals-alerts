@@ -3,20 +3,24 @@
 
 import type { Provider, Notification, ChannelConfig, SendResult } from "./types.ts";
 
-interface EmailConfig { address?: string }
+interface EmailConfig {
+  address?: string;
+  api_key?: string;
+  from_address?: string;
+}
 
 export const emailProvider: Provider = {
   type: "email",
   displayName: "Email",
   description: "Send to an email address. Reliable, but slower than push.",
-  requiresGlobalSecrets: true, // RESEND_API_KEY, EMAIL_FROM_ADDRESS
+  requiresGlobalSecrets: false, // Per-user: api_key + from_address live in channel.config
 
   async send(n: Notification, raw: ChannelConfig): Promise<SendResult> {
     const cfg = raw as EmailConfig;
-    const apiKey = Deno.env.get("RESEND_API_KEY");
-    const from = Deno.env.get("EMAIL_FROM_ADDRESS");
-    if (!apiKey || !from) return { ok: false, error: "Resend env vars not set" };
-    if (!cfg.address) return { ok: false, error: "missing address" };
+    const apiKey = cfg.api_key;
+    const from = cfg.from_address;
+    if (!apiKey || !from) return { ok: false, error: "Resend api_key / from_address missing in channel config" };
+    if (!cfg.address) return { ok: false, error: "missing recipient address" };
 
     const html = `
       <div style="font-family:system-ui,sans-serif">

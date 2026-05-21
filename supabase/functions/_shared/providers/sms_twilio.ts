@@ -1,20 +1,25 @@
 import type { Provider, Notification, ChannelConfig, SendResult } from "./types.ts";
 
-interface TwilioConfig { phone?: string }
+interface TwilioConfig {
+  phone?: string;
+  account_sid?: string;
+  auth_token?: string;
+  from_number?: string;
+}
 
 export const smsTwilioProvider: Provider = {
   type: "sms_twilio",
   displayName: "SMS (via Twilio)",
-  description: "Text message to your phone. Reliable, works without internet, paid per message (~$0.008).",
-  requiresGlobalSecrets: true, // TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER
+  description: "Text message to your phone. Reliable, works without internet, you pay Twilio (~$0.008/SMS).",
+  requiresGlobalSecrets: false, // Per-user: account_sid, auth_token, from_number live in channel.config
 
   async send(n: Notification, raw: ChannelConfig): Promise<SendResult> {
     const cfg = raw as TwilioConfig;
-    const sid = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const token = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const from = Deno.env.get("TWILIO_FROM_NUMBER");
+    const sid = cfg.account_sid;
+    const token = cfg.auth_token;
+    const from = cfg.from_number;
     if (!sid || !token || !from) {
-      return { ok: false, error: "Twilio env vars not set" };
+      return { ok: false, error: "Twilio account_sid / auth_token / from_number missing in channel config" };
     }
     if (!cfg.phone) return { ok: false, error: "missing phone" };
 

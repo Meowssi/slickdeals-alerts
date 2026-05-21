@@ -35,9 +35,9 @@ interface OptionalChannel {
 
 const OPTIONAL_CHANNELS: readonly OptionalChannel[] = [
   { id: "telegram",   label: "Telegram",  envVars: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_BOT_USERNAME", "TELEGRAM_WEBHOOK_SECRET"] },
-  { id: "sms",        label: "Twilio SMS",envVars: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"] },
   { id: "pushover",   label: "Pushover",  envVars: ["PUSHOVER_APP_TOKEN"] },
-  { id: "email",      label: "Email (Resend)", envVars: ["RESEND_API_KEY", "EMAIL_FROM_ADDRESS"] },
+  // Twilio SMS and Resend Email are per-user (creds live in each channel's
+  // notification_channels.config), so no global secrets to check.
 ];
 
 /** Derive the Supabase project ref from the URL (or env override). */

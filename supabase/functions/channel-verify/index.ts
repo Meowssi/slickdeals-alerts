@@ -110,12 +110,13 @@ async function startVerification(
   }
 
   if (ch.type === "sms_twilio") {
-    const phone = (ch.config as { phone?: string }).phone;
-    const sid = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const tok = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const from = Deno.env.get("TWILIO_FROM_NUMBER");
+    const cfg = ch.config as { phone?: string; account_sid?: string; auth_token?: string; from_number?: string };
+    const phone = cfg.phone;
+    const sid = cfg.account_sid;
+    const tok = cfg.auth_token;
+    const from = cfg.from_number;
     if (!phone || !sid || !tok || !from) {
-      return Response.json({ ok: false, error: "Twilio not configured" }, { status: 400 });
+      return Response.json({ ok: false, error: "Twilio account_sid, auth_token, from_number, and phone are all required in the channel config" }, { status: 400 });
     }
     const params = new URLSearchParams({
       To: phone, From: from,

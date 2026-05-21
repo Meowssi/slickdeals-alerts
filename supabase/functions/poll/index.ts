@@ -200,6 +200,8 @@ function rssItemToDeal(item: any): DealItem | null {
     item["media:thumbnail"]?.["@_url"] ??
     item["media:content"]?.["@_url"] ??
     item.enclosure?.["@_url"] ??
+    extractImgFromHtml(item["content:encoded"]) ??
+    extractImgFromHtml(item.description) ??
     null;
 
   return {
@@ -212,6 +214,12 @@ function rssItemToDeal(item: any): DealItem | null {
     pubAt: pubAt && !Number.isNaN(pubAt.getTime()) ? pubAt : null,
     raw: item as Record<string, unknown>,
   };
+}
+
+function extractImgFromHtml(html: unknown): string | null {
+  if (typeof html !== "string" || !html) return null;
+  const m = html.match(/<img[^>]+src=["']([^"'>]+)["']/i);
+  return m ? m[1]! : null;
 }
 
 function extractPrice(s: string): number | null {

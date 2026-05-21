@@ -89,13 +89,24 @@ export default async function FeedPage({
     };
   });
 
-  const rows: FeedRow[] = allRows.filter((r) => {
-    if (filter === "dismissed") return r.dismissed;
-    if (r.dismissed) return false;
-    if (filter === "saved") return r.saved;
-    if (filter === "unread") return r.read_at === null;
-    return true;
-  });
+  const rows: FeedRow[] = allRows
+    .filter((r) => {
+      if (filter === "dismissed") return r.dismissed;
+      if (r.dismissed) return false;
+      if (filter === "saved") return r.saved;
+      if (filter === "unread") return r.read_at === null;
+      return true;
+    })
+    // Sort by when the deal was actually published on Slickdeals (rss_pub_at),
+    // not by when our poller noticed it (matched_at). Within the same minute
+    // a batch poll's matched_at values are all near-identical, so matched_at
+    // sort puts newly-published deals below older same-batch items.
+    .sort((a, b) => {
+      const at = a.rss_pub_at ? new Date(a.rss_pub_at).getTime() : 0;
+      const bt = b.rss_pub_at ? new Date(b.rss_pub_at).getTime() : 0;
+      if (bt !== at) return bt - at;
+      return new Date(b.matched_at).getTime() - new Date(a.matched_at).getTime();
+    });
 
   const buildHref = (next: { filter?: string | null; alert?: string | null }): string => {
     const sp = new URLSearchParams();
@@ -207,10 +218,10 @@ function FeedItem({ row }: { row: FeedRow }) {
           <img
             src={row.thumbnail_url}
             alt=""
-            className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 object-contain rounded bg-neutral-100"
+            className="w-[72px] h-[72px] sm:w-24 sm:h-24 shrink-0 object-contain rounded bg-neutral-100"
           />
         ) : (
-          <div className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 rounded bg-neutral-100 flex items-center justify-center text-3xl text-neutral-300">
+          <div className="w-[72px] h-[72px] sm:w-24 sm:h-24 shrink-0 rounded bg-neutral-100 flex items-center justify-center text-2xl text-neutral-300">
             $
           </div>
         )}

@@ -5,9 +5,17 @@
 // components — the "use server" directive lets them be passed as form actions.
 
 import "server-only";
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { projectRef } from "@/lib/admin-checks";
+import {
+  ADMIN_TOTP_SESSION_COOKIE,
+  clearAdminTotpSecret,
+  saveAdminTotpSecret,
+  totpSessionToken,
+} from "@/lib/admin-auth";
+import { verifyCode } from "@/lib/totp";
 
 const MANAGEMENT_API = "https://api.supabase.com";
 
@@ -199,6 +207,45 @@ export async function sendTestAction(_prev: ActionResult | null, formData: FormD
   const body = await res.json().catch(() => ({})) as { ok?: boolean; error?: string };
   if (!body.ok) return errResult(`Test failed: ${body.error ?? res.status}`);
   return okResult("Test sent. Check the channel.");
+}
+
+// ---------------------------------------------------------------------------
+// Admin TOTP 2FA
+// ---------------------------------------------------------------------------
+
+/** Confirm a TOTP code against a pending secret and persist it. Sets the
+ * unlock cookie so the admin is already past the gate after enabling. */
+export async function enableAdminTotpAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const pendingSecret = string(formData.get("pending_secret"));
+  const code = string(formData.get("code"));
+  if (!pendingSecret) return errResult("No pending secret. Click 'Generate QR code' first.");
+  if (!code) return errResult("Enter the 6-digit code from your authenticator app.");
+
+  if (!verifyCode(pendingSecret, code)) {
+    return errResult("Code didn't match. Make sure your device clock is correct, then try again.");
+  }
+
+  await saveAdminTotpSecret(pendingSecret);
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_TOTP_SESSION_COOKIE, totpSessionToken(pendingSecret), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/admin",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  revalidatePath("/admin/setup");
+  return okResult("2FA enabled. Future visits to /admin will require your code.");
+}
+
+/** Wipe the stored TOTP secret. Admin remains accessible via password/email
+ * layers alone. */
+export async function disableAdminTotpAction(_prev: ActionResult | null, _formData: FormData): Promise<ActionResult> {
+  await clearAdminTotpSecret();
+  const cookieStore = await cookies();
+  cookieStore.delete(ADMIN_TOTP_SESSION_COOKIE);
+  revalidatePath("/admin/setup");
+  return okResult("2FA disabled. Re-enable any time from this page.");
 }
 
 // ---------------------------------------------------------------------------

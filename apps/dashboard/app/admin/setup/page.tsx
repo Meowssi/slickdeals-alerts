@@ -8,10 +8,15 @@ import {
   setProjectSecretsAction,
   setAuthRedirectsAction,
   triggerWorkflowAction,
+  enableAdminTotpAction,
+  disableAdminTotpAction,
 } from "@/lib/admin-actions";
 import { ActionForm } from "@/components/admin/action-form";
 import { AdminTelegramSetup } from "@/components/admin/telegram-setup";
 import { AdminPushoverSetup } from "@/components/admin/pushover-setup";
+import { AdminTotpSetup } from "@/components/admin/totp-setup";
+import { getAdminTotpSecret } from "@/lib/admin-auth";
+import { generateSecret, otpAuthUri, qrPngDataUrl } from "@/lib/totp";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
@@ -26,6 +31,20 @@ export default async function AdminSetupPage() {
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
   const proto = h.get("x-forwarded-proto") ?? "https";
   const siteUrlGuess = host ? `${proto}://${host}` : "";
+
+  // 2FA setup state. If a secret is already stored in vault, show "enabled".
+  // Otherwise generate a fresh pending secret + QR each page render — it's
+  // only persisted after the user confirms a valid code.
+  const existingTotpSecret = await getAdminTotpSecret();
+  const totpState: "on" | "off" = existingTotpSecret ? "on" : "off";
+  const pendingTotpSecret = totpState === "off" ? generateSecret() : null;
+  const pendingQrUri = pendingTotpSecret
+    ? await qrPngDataUrl(otpAuthUri({
+        secret: pendingTotpSecret,
+        label: host || "slickdeals-alerts",
+        issuer: "Slickdeals Alerts",
+      }))
+    : null;
 
   async function refresh(): Promise<void> {
     "use server";
@@ -100,7 +119,17 @@ export default async function AdminSetupPage() {
         />
       </Group>
 
-      <Group title="2. Auth redirect URLs" description="Tell Supabase about your Vercel domain so magic-link sign-in actually works.">
+      <Group title="2. Admin lock" description="Lock these admin pages down beyond the ADMIN_EMAILS allowlist.">
+        <AdminTotpSetup
+          state={totpState}
+          qrDataUrl={pendingQrUri}
+          pendingSecret={pendingTotpSecret}
+          enableAction={enableAdminTotpAction}
+          disableAction={disableAdminTotpAction}
+        />
+      </Group>
+
+      <Group title="3. Auth redirect URLs" description="Tell Supabase about your Vercel domain so magic-link sign-in actually works.">
         <ActionForm
           title="Configure Site URL + redirect allowlist"
           description="Sets site_url to your dashboard origin and adds /auth/callback to the allow list."
@@ -112,7 +141,7 @@ export default async function AdminSetupPage() {
         />
       </Group>
 
-      <Group title="3. Notification channels" description="Set up each channel you want to support. Skip what you don't need.">
+      <Group title="4. Notification channels" description="Set up each channel you want to support. Skip what you don't need.">
         <AdminTelegramSetup action={setupTelegramAction} />
 
         <AdminPushoverSetup action={setProjectSecretsAction} />

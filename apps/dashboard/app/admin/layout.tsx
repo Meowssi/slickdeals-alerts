@@ -1,7 +1,15 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabase/server";
-import { ADMIN_SESSION_COOKIE, checkAdminGate, passwordToken } from "@/lib/admin-auth";
+import {
+  ADMIN_SESSION_COOKIE,
+  ADMIN_TOTP_SESSION_COOKIE,
+  checkAdminGate,
+  getAdminTotpSecret,
+  passwordToken,
+  totpSessionToken,
+} from "@/lib/admin-auth";
+import { verifyCode } from "@/lib/totp";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supa = await supabaseServer();
@@ -9,10 +17,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user) redirect("/login?next=/admin/setup");
 
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const passwordCookie = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const totpCookie     = cookieStore.get(ADMIN_TOTP_SESSION_COOKIE)?.value;
+  const totpSecret     = await getAdminTotpSecret();
+
   const gate = checkAdminGate({
     userEmail: user.email ?? undefined,
-    sessionCookie,
+    passwordCookie,
+    totpCookie,
+    totpSecret,
   });
 
   if (!gate.allowed) {
@@ -22,12 +35,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="card p-8 max-w-md text-center space-y-3">
             <h1 className="text-xl font-semibold">Admin lock not configured</h1>
             <p className="text-sm text-neutral-700">
-              The <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded">ADMIN_EMAILS</code> env var is empty,
-              so this page is refusing to render — otherwise any signed-in user could access it.
-            </p>
-            <p className="text-sm text-neutral-700">
-              Set <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded">ADMIN_EMAILS</code> on your Vercel project (comma-separated emails)
-              and redeploy. Optionally also set <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded">ADMIN_PASSWORD</code> for a second layer.
+              The <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded">ADMIN_EMAILS</code> env var is empty.
+              Set it (comma-separated emails) in Vercel and redeploy. Optionally set <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded">ADMIN_PASSWORD</code>
+              and/or configure 2FA from this page for additional layers.
             </p>
           </div>
         </div>
@@ -39,10 +49,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="card p-8 max-w-md text-center">
             <h1 className="text-xl font-semibold mb-2">Admin only</h1>
             <p className="text-sm text-neutral-600">
-              You&apos;re signed in as <strong>{gate.email}</strong>, which isn&apos;t in the
-              admin allowlist. If this is your deployment, add your email to the{" "}
-              <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded">ADMIN_EMAILS</code>{" "}
-              env var on Vercel.
+              You&apos;re signed in as <strong>{gate.email}</strong>, which isn&apos;t in the admin allowlist.
             </p>
           </div>
         </div>
@@ -50,6 +57,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     }
     if (gate.reason === "needs-password") {
       return <PasswordPrompt />;
+    }
+    if (gate.reason === "needs-totp" && totpSecret) {
+      return <TotpPrompt secret={totpSecret} />;
     }
   }
 
@@ -67,9 +77,6 @@ function PasswordPrompt() {
     const adminPw = process.env.ADMIN_PASSWORD ?? "";
     if (!submitted || !adminPw) return;
     if (submitted !== adminPw) {
-      // Re-render the form. We could surface an error message but for brevity
-      // we just reload — the wrong password leaves no cookie, so we end up
-      // back at this form.
       redirect("/admin/setup?wrong=1");
     }
     const cookieStore = await cookies();
@@ -78,7 +85,7 @@ function PasswordPrompt() {
       sameSite: "lax",
       secure: true,
       path: "/admin",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: 60 * 60 * 24 * 30,
     });
     redirect("/admin/setup");
   }
@@ -88,8 +95,7 @@ function PasswordPrompt() {
       <form action={unlock} className="card p-8 max-w-md w-full space-y-4">
         <h1 className="text-xl font-semibold">Admin password</h1>
         <p className="text-sm text-neutral-600">
-          This deployment requires an additional password for the admin pages
-          (in addition to the email allowlist).
+          Layer 1: password before the admin pages.
         </p>
         <input
           type="password"
@@ -100,10 +106,52 @@ function PasswordPrompt() {
           placeholder="ADMIN_PASSWORD"
           className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
-        <button
-          type="submit"
-          className="w-full rounded-md bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-800"
-        >
+        <button type="submit" className="w-full rounded-md bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-800">
+          Unlock
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function TotpPrompt({ secret }: { secret: string }) {
+  async function unlock(formData: FormData) {
+    "use server";
+    const code = String(formData.get("code") ?? "");
+    if (!verifyCode(secret, code)) {
+      redirect("/admin/setup?wrong_code=1");
+    }
+    const cookieStore = await cookies();
+    cookieStore.set(ADMIN_TOTP_SESSION_COOKIE, totpSessionToken(secret), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/admin",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    redirect("/admin/setup");
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
+      <form action={unlock} className="card p-8 max-w-md w-full space-y-4">
+        <h1 className="text-xl font-semibold">Admin 2FA</h1>
+        <p className="text-sm text-neutral-600">
+          Enter the current 6-digit code from your authenticator app.
+        </p>
+        <input
+          type="text"
+          name="code"
+          required
+          autoFocus
+          inputMode="numeric"
+          pattern="[0-9]{6}"
+          maxLength={6}
+          placeholder="123456"
+          autoComplete="one-time-code"
+          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-lg text-center tracking-widest font-mono focus:border-blue-500 focus:outline-none"
+        />
+        <button type="submit" className="w-full rounded-md bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-800">
           Unlock
         </button>
       </form>

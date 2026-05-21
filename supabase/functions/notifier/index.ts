@@ -19,9 +19,11 @@ interface TriggerPayload {
 }
 
 Deno.serve(async (req) => {
-  const auth = req.headers.get("Authorization");
-  const expected = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
-  if (!auth || auth !== expected) {
+  // verify_jwt:true on deploy means Supabase already validated the signature.
+  // We only need to confirm the role claim is service_role so anon callers
+  // can't trigger a notification fanout.
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ") || !isServiceRole(auth.slice("Bearer ".length))) {
     return new Response("unauthorized", { status: 401 });
   }
 
@@ -114,6 +116,17 @@ Deno.serve(async (req) => {
 
   return Response.json({ sent: results });
 });
+
+function isServiceRole(jwt: string): boolean {
+  try {
+    const parts = jwt.split(".");
+    if (parts.length < 2) return false;
+    const payload = JSON.parse(atob(parts[1]!.replace(/-/g, "+").replace(/_/g, "/")));
+    return payload?.role === "service_role";
+  } catch {
+    return false;
+  }
+}
 
 function buildBody(
   alertName: string,

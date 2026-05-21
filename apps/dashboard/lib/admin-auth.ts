@@ -1,27 +1,18 @@
-// Helpers for /admin auth: stacked gates.
-//   1. ADMIN_EMAILS allowlist (required to be set — empty refuses access).
-//   2. (Optional) ADMIN_PASSWORD env var.
-//   3. (Optional) TOTP secret in Supabase Vault.
+// Helpers for /admin auth. Two stacked gates:
+//   1. ADMIN_EMAILS allowlist (required — empty refuses access entirely).
+//   2. TOTP 2FA secret in Supabase Vault (required once configured).
 //
-// All configured gates must pass.
+// Both configured gates must pass.
 
 import "server-only";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-const PASSWORD_COOKIE = "admin_session";
 const TOTP_COOKIE     = "admin_totp_session";
 const VAULT_TOTP_NAME = "admin_totp_secret";
 
-export const ADMIN_SESSION_COOKIE      = PASSWORD_COOKIE;
 export const ADMIN_TOTP_SESSION_COOKIE = TOTP_COOKIE;
 export const ADMIN_TOTP_VAULT_NAME     = VAULT_TOTP_NAME;
-
-export function passwordToken(password: string): string {
-  return createHash("sha256")
-    .update("slickdeals-alerts-admin-session::" + password)
-    .digest("hex");
-}
 
 export function totpSessionToken(secret: string): string {
   // Cookie value is a hash of the TOTP shared secret. Owning the cookie
@@ -65,21 +56,17 @@ export async function saveAdminTotpSecret(secret: string): Promise<void> {
 
 export async function clearAdminTotpSecret(): Promise<void> {
   const supa = supabaseAdmin();
-  // Setting to empty string effectively disables the gate. We could delete
-  // the entry instead, but admin_upsert_vault_secret is the existing
-  // contract; this keeps the surface small.
   await supa.rpc("admin_upsert_vault_secret", { p_name: VAULT_TOTP_NAME, p_value: "" });
 }
 
 export interface AdminGateResult {
   allowed: boolean;
-  reason?: "not-configured" | "wrong-email" | "needs-password" | "needs-totp";
+  reason?: "not-configured" | "wrong-email" | "needs-totp";
   email?: string;
 }
 
 export interface AdminGateInput {
   userEmail: string | undefined;
-  passwordCookie: string | undefined;
   totpCookie: string | undefined;
   totpSecret: string | null;
 }
@@ -95,14 +82,6 @@ export function checkAdminGate(opts: AdminGateInput): AdminGateResult {
     return { allowed: false, reason: "wrong-email", email };
   }
 
-  const adminPw = process.env.ADMIN_PASSWORD;
-  if (adminPw && adminPw.length > 0) {
-    const expected = passwordToken(adminPw);
-    if (!opts.passwordCookie || !constantTimeEquals(opts.passwordCookie, expected)) {
-      return { allowed: false, reason: "needs-password", email };
-    }
-  }
-
   if (opts.totpSecret && opts.totpSecret.length > 0) {
     const expected = totpSessionToken(opts.totpSecret);
     if (!opts.totpCookie || !constantTimeEquals(opts.totpCookie, expected)) {
@@ -112,4 +91,3 @@ export function checkAdminGate(opts: AdminGateInput): AdminGateResult {
 
   return { allowed: true, email };
 }
-

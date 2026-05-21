@@ -71,11 +71,25 @@ async function startVerification(
 
   if (ch.type === "telegram") {
     const botUsername = Deno.env.get("TELEGRAM_BOT_USERNAME") ?? "";
+    const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
+    if (!botUsername || !botToken) {
+      // Roll back the code we just wrote — it's useless without a bot.
+      await supa.from("notification_channels").update({
+        verification_code: null,
+        verification_expires_at: null,
+      }).eq("id", ch.id);
+      return Response.json({
+        ok: false,
+        error: "telegram_not_configured",
+        needs_admin: true,
+        message: "Your deployer needs to set up a Telegram bot first. See /admin/setup.",
+      }, { status: 400 });
+    }
     return Response.json({
       ok: true,
       code,
       instructions: "Send `/link CODE` to the bot, or tap the deep link.",
-      deeplink: botUsername ? `https://t.me/${botUsername}?start=${code}` : null,
+      deeplink: `https://t.me/${botUsername}?start=${code}`,
       expires_in_seconds: 900,
     });
   }

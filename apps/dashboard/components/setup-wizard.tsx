@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { PROVIDER_CATALOG, type ProviderMeta } from "@slickalerts/shared/providers";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { NtfyWalkthrough } from "@/components/wizards/ntfy-walkthrough";
+import { TelegramWalkthrough } from "@/components/wizards/telegram-walkthrough";
 
 type Step =
   | { kind: "welcome" }
@@ -21,7 +22,7 @@ type Step =
   | { kind: "first-alert" }
   | { kind: "done" };
 
-export function SetupWizard({ email }: { email: string }) {
+export function SetupWizard({ email, isAdmin }: { email: string; isAdmin: boolean }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "welcome" });
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -55,6 +56,7 @@ export function SetupWizard({ email }: { email: string }) {
           providerType={step.queue[step.index]!}
           stepNumber={step.index + 1}
           totalSteps={step.queue.length}
+          isAdmin={isAdmin}
           onSkip={() => advance(step, setStep)}
           onDone={() => advance(step, setStep)}
         />
@@ -190,27 +192,36 @@ function ConfigureChannel(props: {
   providerType: string;
   stepNumber: number;
   totalSteps: number;
+  isAdmin: boolean;
   onSkip: () => void;
   onDone: () => void;
 }) {
   const meta = PROVIDER_CATALOG.find((p) => p.type === props.providerType);
   if (!meta) return <p>Unknown provider.</p>;
 
+  // Per-channel walkthroughs render their own headings.
+  const hasOwnHeader = meta.type === "ntfy" || meta.type === "telegram";
+
   return (
     <>
       <div className="text-xs text-neutral-500 mb-2">
         Channel {props.stepNumber} of {props.totalSteps}
       </div>
-      <h1 className="text-2xl font-semibold mb-2">Connect {meta.displayName}</h1>
-      <p className="text-neutral-600 mb-4">{meta.setup.instructions}</p>
+      {!hasOwnHeader && (
+        <>
+          <h1 className="text-2xl font-semibold mb-2">Connect {meta.displayName}</h1>
+          <p className="text-neutral-600 mb-4">{meta.setup.instructions}</p>
+        </>
+      )}
 
-      <ChannelForm meta={meta} onDone={props.onDone} onSkip={props.onSkip} />
+      <ChannelForm meta={meta} isAdmin={props.isAdmin} onDone={props.onDone} onSkip={props.onSkip} />
     </>
   );
 }
 
 function ChannelForm(props: {
   meta: ProviderMeta;
+  isAdmin: boolean;
   onDone: () => void;
   onSkip: () => void;
 }) {
@@ -218,7 +229,10 @@ function ChannelForm(props: {
   if (props.meta.type === "ntfy") {
     return <NtfyWalkthrough onDone={props.onDone} onSkip={props.onSkip} />;
   }
-  return <GenericChannelForm {...props} />;
+  if (props.meta.type === "telegram") {
+    return <TelegramWalkthrough onDone={props.onDone} onSkip={props.onSkip} isAdmin={props.isAdmin} />;
+  }
+  return <GenericChannelForm meta={props.meta} onDone={props.onDone} onSkip={props.onSkip} />;
 }
 
 function GenericChannelForm({

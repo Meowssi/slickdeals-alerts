@@ -10,6 +10,7 @@ import {
   triggerWorkflowAction,
 } from "@/lib/admin-actions";
 import { ActionForm } from "@/components/admin/action-form";
+import { AdminTelegramSetup } from "@/components/admin/telegram-setup";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
@@ -111,17 +112,7 @@ export default async function AdminSetupPage() {
       </Group>
 
       <Group title="3. Notification channels" description="Set up each channel you want to support. Skip what you don't need.">
-        <ActionForm
-          title="Telegram (recommended)"
-          description="Create a bot with @BotFather first. Paste the token + the @username it gave you. We'll save the secrets and register the webhook in one shot."
-          action={setupTelegramAction}
-          fields={[
-            { name: "token",    label: "Bot token (from BotFather)", placeholder: "123456789:AAH...", required: true, type: "password" },
-            { name: "username", label: "Bot username (without @)",   placeholder: "slickdeals_alerts_bot", required: true },
-            { name: "webhook_secret", label: "Webhook secret (leave blank to auto-generate)", placeholder: "auto-generated 64-char hex if blank" },
-          ]}
-          submitLabel="Set up Telegram"
-        />
+        <AdminTelegramSetup action={setupTelegramAction} />
 
         <ChannelSecretForm
           title="Twilio SMS (optional)"

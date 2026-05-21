@@ -14,10 +14,16 @@ export default async function SetupPage() {
     .single();
   if (settings?.onboarded_at) redirect("/");
 
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const isAdmin = adminEmails.includes((user.email ?? "").toLowerCase());
+
   return (
     <div className="min-h-screen bg-neutral-50 py-8 px-4">
       <div className="mx-auto max-w-2xl">
-        <SetupWizard email={user.email ?? ""} />
+        <SetupWizard email={user.email ?? ""} isAdmin={isAdmin} />
       </div>
     </div>
   );

@@ -44,11 +44,11 @@ interface DealItem {
 }
 
 Deno.serve(async (req) => {
-  // service_role JWT required. pg_cron passes it via vault. We don't accept
-  // anon-key calls — this function does privileged inserts on every user.
+  // verify_jwt:true on the function deploy means Supabase has already
+  // validated the JWT signature. We only need to confirm the role claim
+  // is service_role so anon-key callers can't trigger a polling pass.
   const auth = req.headers.get("Authorization") ?? "";
-  const expected = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
-  if (!auth || auth !== expected) {
+  if (!auth.startsWith("Bearer ") || !isServiceRole(auth.slice("Bearer ".length))) {
     return new Response("unauthorized", { status: 401 });
   }
 
@@ -281,6 +281,17 @@ async function insertMatch(
     return false;
   }
   return true;
+}
+
+function isServiceRole(jwt: string): boolean {
+  try {
+    const parts = jwt.split(".");
+    if (parts.length < 2) return false;
+    const payload = JSON.parse(atob(parts[1]!.replace(/-/g, "+").replace(/_/g, "/")));
+    return payload?.role === "service_role";
+  } catch {
+    return false;
+  }
 }
 
 async function runWithConcurrency<T>(

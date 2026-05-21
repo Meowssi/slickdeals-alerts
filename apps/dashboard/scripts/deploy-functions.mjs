@@ -67,39 +67,48 @@ async function bundleFunction(name) {
       },
     }],
   });
-  return result.outputFiles[0].text;
+  let body = result.outputFiles[0].text;
+  // esbuild prepends a "// path/to/source.ts" header comment that Supabase's
+  // function-upload pipeline mangles (strips the "// "), turning the path into
+  // bare invalid code on line 1 and producing BOOT_ERROR. Strip it ourselves.
+  body = body.replace(/^\/\/\s+[^\n]*\.ts\n/, "");
+  return body;
 }
 
 async function deployFunction(name, body) {
-  const url = `https://api.supabase.com/v1/projects/${REF}/functions`;
   const slug = name;
+  const verifyJwt = name === "telegram-webhook" ? false : true;
+  const endpoint = `https://api.supabase.com/v1/projects/${REF}/functions/deploy?slug=${encodeURIComponent(slug)}`;
 
-  // Check if function exists. If yes, PATCH (update version). If no, POST (create).
-  const existsRes = await fetch(`${url}/${slug}`, {
-    headers: { Authorization: `Bearer ${TOKEN}`, "User-Agent": "Mozilla/5.0" },
-  });
-  const isUpdate = existsRes.status === 200;
-
-  const endpoint = isUpdate ? `${url}/${slug}` : url;
-  const method = isUpdate ? "PATCH" : "POST";
-  const payload = isUpdate
-    ? { body, verify_jwt: name === "telegram-webhook" ? false : true }
-    : { slug, name: slug, body, verify_jwt: name === "telegram-webhook" ? false : true };
+  // Modern multipart upload (same path the Supabase CLI uses). The legacy
+  // JSON-body endpoint strips the first 4-5 bytes of `body`, causing BOOT_ERROR.
+  const form = new FormData();
+  form.append(
+    "metadata",
+    new Blob(
+      [JSON.stringify({
+        name: slug,
+        entrypoint_path: "index.ts",
+        verify_jwt: verifyJwt,
+      })],
+      { type: "application/json" },
+    ),
+  );
+  form.append("file", new Blob([body], { type: "application/typescript" }), "index.ts");
 
   const res = await fetch(endpoint, {
-    method,
+    method: "POST",
     headers: {
       Authorization: `Bearer ${TOKEN}`,
-      "Content-Type": "application/json",
       "User-Agent": "Mozilla/5.0",
     },
-    body: JSON.stringify(payload),
+    body: form,
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`${method} ${endpoint} -> ${res.status}: ${text.slice(0, 300)}`);
+    throw new Error(`POST ${endpoint} -> ${res.status}: ${text.slice(0, 300)}`);
   }
-  return `${isUpdate ? "updated" : "created"}: ${slug}`;
+  return `deployed: ${slug}`;
 }
 
 async function main() {

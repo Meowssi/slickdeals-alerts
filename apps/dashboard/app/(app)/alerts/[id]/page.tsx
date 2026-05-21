@@ -27,10 +27,6 @@ export default async function EditAlertPage({
           name: alert.name,
           rss_url: alert.rss_url,
           enabled: alert.enabled,
-          title_include: alert.title_include,
-          title_exclude: alert.title_exclude,
-          min_price: alert.min_price,
-          max_price: alert.max_price,
           priority: alert.priority,
           channel_ids: alert.channel_ids ?? [],
         }}

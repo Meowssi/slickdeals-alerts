@@ -11,10 +11,6 @@ interface AlertFormProps {
     name?: string;
     rss_url?: string;
     enabled?: boolean;
-    title_include?: string[];
-    title_exclude?: string[];
-    min_price?: number | null;
-    max_price?: number | null;
     priority?: AlertPriority;
     channel_ids?: string[];
   };
@@ -26,19 +22,11 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
   const [name, setName] = useState(initial.name ?? "");
   const [rssUrl, setRssUrl] = useState(initial.rss_url ?? "");
   const [enabled, setEnabled] = useState(initial.enabled ?? true);
-  const [titleInclude, setTitleInclude] = useState((initial.title_include ?? []).join(", "));
-  const [titleExclude, setTitleExclude] = useState((initial.title_exclude ?? []).join(", "));
-  const [minPrice, setMinPrice] = useState(initial.min_price?.toString() ?? "");
-  const [maxPrice, setMaxPrice] = useState(initial.max_price?.toString() ?? "");
   const [priority, setPriority] = useState<AlertPriority>(initial.priority ?? "normal");
   const [channelIds, setChannelIds] = useState<string[]>(initial.channel_ids ?? []);
   const [submitting, setSubmitting] = useState(false);
   const [errMsg, setErrMsg] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
-
-  function toCsv(s: string): string[] {
-    return s.split(",").map((x) => x.trim()).filter(Boolean);
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,10 +37,6 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
       name: name.trim(),
       rss_url: rssUrl.trim(),
       enabled,
-      title_include: toCsv(titleInclude),
-      title_exclude: toCsv(titleExclude),
-      min_price: minPrice ? Number(minPrice) : null,
-      max_price: maxPrice ? Number(maxPrice) : null,
       priority,
       channel_ids: channelIds,
     };
@@ -124,31 +108,6 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
           Enabled (uncheck to pause without deleting)
         </label>
-      </div>
-
-      <div className="card p-6 space-y-4">
-        <h2 className="font-semibold">Extra filters (optional)</h2>
-        <p className="text-sm text-neutral-600">
-          Applied on top of the RSS results — handy for narrowing further without editing the search on Slickdeals.
-        </p>
-        <Field label="Title must include (comma-separated, ANY match)">
-          <input className="input" value={titleInclude}
-                 onChange={(e) => setTitleInclude(e.target.value)} placeholder="cat6, ethernet" />
-        </Field>
-        <Field label="Title must NOT include (comma-separated, NONE match)">
-          <input className="input" value={titleExclude}
-                 onChange={(e) => setTitleExclude(e.target.value)} placeholder="refurbished" />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Min price ($)">
-            <input className="input" type="number" step="0.01" value={minPrice}
-                   onChange={(e) => setMinPrice(e.target.value)} />
-          </Field>
-          <Field label="Max price ($)">
-            <input className="input" type="number" step="0.01" value={maxPrice}
-                   onChange={(e) => setMaxPrice(e.target.value)} />
-          </Field>
-        </div>
       </div>
 
       <div className="card p-6 space-y-4">

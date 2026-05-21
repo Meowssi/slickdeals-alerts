@@ -26,18 +26,39 @@ export function TelegramWalkthrough({
     setErrMsg("");
     const supa = supabaseBrowser();
 
-    // 1. Insert the channel row.
-    const { data: ch, error: insErr } = await supa
+    // 1. Find or create the channel row. The unique key is (user_id, type, name);
+    //    reuse an existing "default" row to allow retries after orphaned attempts.
+    let chId: string;
+    const { data: existing } = await supa
       .from("notification_channels")
-      .insert({ type: "telegram", name: "default", config: {}, enabled: true })
-      .select("id")
-      .single();
-    if (insErr || !ch) {
-      setStep("error");
-      setErrMsg(insErr?.message ?? "could not save channel");
+      .select("id, verified_at")
+      .eq("type", "telegram")
+      .eq("name", "default")
+      .maybeSingle();
+
+    if (existing?.verified_at) {
+      // Already verified — nothing to do, jump to done.
+      setChannelId(existing.id);
+      setStep("verified");
       return;
     }
-    setChannelId(ch.id);
+    if (existing) {
+      // Reuse the unverified row.
+      chId = existing.id;
+    } else {
+      const { data: ch, error: insErr } = await supa
+        .from("notification_channels")
+        .insert({ type: "telegram", name: "default", config: {}, enabled: true })
+        .select("id")
+        .single();
+      if (insErr || !ch) {
+        setStep("error");
+        setErrMsg(insErr?.message ?? "could not save channel");
+        return;
+      }
+      chId = ch.id;
+    }
+    setChannelId(chId);
 
     // 2. Ask channel-verify for a code + deeplink.
     const { data: { session } } = await supa.auth.getSession();
@@ -59,7 +80,7 @@ export function TelegramWalkthrough({
             Authorization: `Bearer ${session?.access_token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ channel_id: ch.id, action: "start" }),
+          body: JSON.stringify({ channel_id: chId, action: "start" }),
         },
       );
       json = await res.json().catch(() => ({}));
@@ -71,7 +92,7 @@ export function TelegramWalkthrough({
 
     if (json.needs_admin) {
       // Clean up the orphan channel row — we'll start over once admin setup is done.
-      await supa.from("notification_channels").delete().eq("id", ch.id);
+      await supa.from("notification_channels").delete().eq("id", chId);
       setStep("needs-admin");
       return;
     }

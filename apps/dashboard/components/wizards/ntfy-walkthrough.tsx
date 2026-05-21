@@ -21,22 +21,44 @@ export function NtfyWalkthrough({ onDone, onSkip }: { onDone: () => void; onSkip
     setStep("saving");
     setErrMsg("");
     const supa = supabaseBrowser();
-    const { data: ch, error: insErr } = await supa
+    const config = { topic: topic.trim(), server: server.trim() || "https://ntfy.sh" };
+
+    // Find or create. Unique key is (user_id, type, name) — reuse "default" row
+    // if it exists (e.g., user retrying after an error or changing their topic).
+    const { data: existing } = await supa
       .from("notification_channels")
-      .insert({
-        type: "ntfy",
-        name: "default",
-        config: { topic: topic.trim(), server: server.trim() || "https://ntfy.sh" },
-        enabled: true,
-      })
       .select("id")
-      .single();
-    if (insErr || !ch) {
-      setErrMsg(insErr?.message ?? "could not save channel");
-      setStep("topic");
-      return;
+      .eq("type", "ntfy")
+      .eq("name", "default")
+      .maybeSingle();
+
+    let chId: string;
+    if (existing) {
+      // Update config + clear any verification state from a prior attempt.
+      const { error: updErr } = await supa
+        .from("notification_channels")
+        .update({ config, enabled: true, verified_at: null, verification_code: null, verification_expires_at: null })
+        .eq("id", existing.id);
+      if (updErr) {
+        setErrMsg(updErr.message);
+        setStep("topic");
+        return;
+      }
+      chId = existing.id;
+    } else {
+      const { data: ch, error: insErr } = await supa
+        .from("notification_channels")
+        .insert({ type: "ntfy", name: "default", config, enabled: true })
+        .select("id")
+        .single();
+      if (insErr || !ch) {
+        setErrMsg(insErr?.message ?? "could not save channel");
+        setStep("topic");
+        return;
+      }
+      chId = ch.id;
     }
-    setChannelId(ch.id);
+    setChannelId(chId);
 
     const { data: { session } } = await supa.auth.getSession();
     try {
@@ -48,7 +70,7 @@ export function NtfyWalkthrough({ onDone, onSkip }: { onDone: () => void; onSkip
             Authorization: `Bearer ${session?.access_token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ channel_id: ch.id, action: "start" }),
+          body: JSON.stringify({ channel_id: chId, action: "start" }),
         },
       );
       const json = await res.json().catch(() => ({}));

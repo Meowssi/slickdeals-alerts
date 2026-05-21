@@ -9,6 +9,7 @@ type Step =
   | "onboarding"
   | "verify-phone"
   | "buy-number"
+  | "review-purchase"
   | "trial-limits"
   | "find-creds"
   | "form"
@@ -328,7 +329,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Step 4: Buy a Twilio phone number</h2>
         <p className="text-sm text-neutral-700">
-          Twilio sends SMS <em>from</em> a phone number you own through their service. You need to buy one — ~$1.15/month, deducted from your trial credit.
+          Twilio sends messages <em>from</em> a phone number you own through their service. You need to buy one — ~$1.15/month, deducted from your trial credit.
         </p>
 
         <ol className="space-y-3 text-sm text-neutral-700">
@@ -340,7 +341,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
                 Open the buy-number page →
               </a>
               <p className="text-xs text-neutral-500 mt-1">
-                Or navigate manually in the Twilio Console: left sidebar → <strong>Develop</strong> → <strong>Phone Numbers</strong> → <strong>Manage</strong> → <strong>Buy a number</strong>.
+                Or navigate manually: left sidebar → <strong>Develop</strong> → <strong>Phone Numbers</strong> → <strong>Manage</strong> → <strong>Buy a number</strong>.
               </p>
             </div>
           </li>
@@ -351,7 +352,8 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
               <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
                 <li><strong>Country</strong>: United States (or yours)</li>
                 <li><strong>Type</strong>: <em>Local</em> — cheapest and works for our use case</li>
-                <li><strong>Capabilities</strong>: check <em>SMS</em> ✓ (required). Voice and MMS optional, leave unchecked to keep cost down.</li>
+                <li><strong>Capabilities</strong>: check both <em>SMS</em> ✓ <strong>and</strong> <em>MMS</em> ✓. MMS is what lets us include the deal&apos;s image in the text (text-only deals are fine too — toggle per-alert later).</li>
+                <li>Voice and Fax: optional, leave unchecked unless you specifically want them</li>
                 <li><strong>Number / Location</strong> filters: optional. Leave blank to see all available numbers.</li>
               </ul>
               <p className="text-xs text-neutral-500 mt-1">Click <strong>Search</strong>.</p>
@@ -361,31 +363,70 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
             <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">3</span>
             <div>
               <p className="font-medium text-neutral-800">Pick any number from the list and click <em>Buy</em></p>
-              <p className="text-xs text-neutral-600 mt-1">A confirmation modal pops up. Confirm — the cost (~$1.15/month) comes out of your $15.50 trial credit.</p>
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">4</span>
-            <div>
-              <p className="font-medium text-neutral-800">Write down the number in E.164 format</p>
-              <p className="text-xs text-neutral-600 mt-1">
-                The number shown like <code className="bg-neutral-100 px-1 rounded">(415) 555-0123</code> becomes <code className="bg-neutral-100 px-1 rounded">+14155550123</code>.
-                You&apos;ll paste this into a form on the last step.
-              </p>
+              <p className="text-xs text-neutral-600 mt-1">A <strong>&quot;Review Phone Number&quot;</strong> modal pops up. The next step explains every confusing thing on it.</p>
             </div>
           </li>
         </ol>
 
-        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3 text-xs text-yellow-900">
-          <p className="font-semibold">⚠️ Skip the &quot;configure your number&quot; modal</p>
-          <p className="mt-1">
-            Twilio may ask you to configure messaging webhooks or copilot features for the number. <strong>Close this modal</strong> — we don&apos;t need any of it. Just click the × in the corner.
+        <div className="flex justify-between pt-2">
+          <button type="button" className="btn-secondary" onClick={() => setStep("verify-phone")}>Back</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("review-purchase")}>I clicked Buy →</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "review-purchase") {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Step 4b: The &quot;Review Phone Number&quot; modal</h2>
+        <p className="text-sm text-neutral-700">
+          Twilio shows you a busy-looking screen with several warnings before letting you buy. None of them block our use case — here&apos;s what each one means.
+        </p>
+
+        <div className="rounded-md border border-neutral-200 p-3 text-sm space-y-2">
+          <p className="font-medium text-neutral-800">📋 &quot;A2P 10DLC registration required&quot;</p>
+          <p className="text-xs text-neutral-600">
+            US carriers (T-Mobile, AT&amp;T, Verizon) require registering an &quot;Application-to-Person&quot; sender before
+            you can send high-volume SMS reliably. <strong>For our use case (a personal alerts bot texting just you):</strong>
+          </p>
+          <ul className="text-xs text-neutral-600 ml-3 list-disc list-inside space-y-0.5">
+            <li><strong>You can ignore it during purchase</strong> — just click Buy. The warning stays on your number forever; it&apos;s not blocking anything.</li>
+            <li>On a trial Twilio account, SMS to <em>verified caller IDs</em> works without registering.</li>
+            <li>If you later upgrade to a paid Twilio account, you may want to do the <em>Low-Volume Standard</em> registration: cheap (~$2/mo) and fast. Twilio nags you about it. Optional.</li>
+          </ul>
+        </div>
+
+        <div className="rounded-md border border-neutral-200 p-3 text-sm space-y-2">
+          <p className="font-medium text-neutral-800">🚨 &quot;Emergency Calling Enablement&quot; checkbox</p>
+          <p className="text-xs text-neutral-600">
+            US FCC rules force Twilio to support 911 from voice-capable numbers. The fine print:
+          </p>
+          <ul className="text-xs text-neutral-600 ml-3 list-disc list-inside space-y-0.5">
+            <li>If <em>someone calls 911</em> from this number <em>and</em> you haven&apos;t set up an emergency address, Twilio charges $75 for that call.</li>
+            <li>You&apos;re using this number for <strong>SMS only</strong> — nobody will dial 911 from it.</li>
+            <li><strong>Check the box.</strong> You&apos;re agreeing to comply with their voice/911 terms, which only matters if you ever use the number for voice.</li>
+          </ul>
+        </div>
+
+        <div className="rounded-md border border-neutral-200 p-3 text-sm space-y-2">
+          <p className="font-medium text-neutral-800">💰 &quot;$1.15 monthly fee&quot;</p>
+          <p className="text-xs text-neutral-600">
+            Charged from your trial credit. The first $1.15 comes off immediately, then again each month. Your $15.50 trial covers ~13 months of number rental on its own (or fewer months + however many SMS you send).
           </p>
         </div>
 
+        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3 text-xs text-yellow-900">
+          <p className="font-semibold">After clicking the blue Buy button:</p>
+          <ul className="list-disc list-inside mt-1 space-y-0.5">
+            <li><strong>Close any &quot;configure your number&quot; modal that pops up</strong> — webhook setup is not needed for our use case. Click the × in the corner.</li>
+            <li>Write down the number in E.164 format (e.g. <code className="bg-white px-1 rounded">+14159378455</code>) — you&apos;ll paste it in the form a few steps from now.</li>
+          </ul>
+        </div>
+
         <div className="flex justify-between pt-2">
-          <button type="button" className="btn-secondary" onClick={() => setStep("verify-phone")}>Back</button>
-          <button type="button" className="btn-primary" onClick={() => setStep("trial-limits")}>Got my number →</button>
+          <button type="button" className="btn-secondary" onClick={() => setStep("buy-number")}>Back</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("trial-limits")}>Bought it, next →</button>
         </div>
       </div>
     );

@@ -71,13 +71,16 @@ Deno.serve(async (req) => {
     alert.priority === "silent" ? 1 :
     3;
 
+  // Per-alert toggle: when include_images is false, drop the thumbnail so
+  // Twilio falls back to plain SMS (cheaper) and Telegram/etc. send text-only.
+  const wantImages = alert.include_images !== false; // default true
   const notification: Notification = {
     title: truncate(deal.title, 140),
     body: buildBody(alert.name, deal),
     url: deal.url,
     priority,
     silent,
-    thumbnailUrl: deal.thumbnail_url ?? null,
+    thumbnailUrl: wantImages ? (deal.thumbnail_url ?? null) : null,
     dealId: deal.id,
   };
 

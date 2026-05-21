@@ -29,6 +29,7 @@ export default async function EditAlertPage({
           enabled: alert.enabled,
           priority: alert.priority,
           channel_ids: alert.channel_ids ?? [],
+          include_images: alert.include_images ?? true,
         }}
         channels={(channels ?? []).map((c) => ({
           id: c.id, type: c.type, name: c.name, verified: !!c.verified_at,

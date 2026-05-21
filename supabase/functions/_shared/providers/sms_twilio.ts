@@ -31,6 +31,12 @@ export const smsTwilioProvider: Provider = {
       From: from,
       Body: body,
     });
+    // When a thumbnail is set on the notification, attach it as MediaUrl
+    // — Twilio upgrades the message to MMS, the recipient sees the image
+    // inline. Requires the From number to be MMS-capable. Costs ~2.5× SMS.
+    if (n.thumbnailUrl) {
+      params.append("MediaUrl", n.thumbnailUrl);
+    }
 
     const res = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,

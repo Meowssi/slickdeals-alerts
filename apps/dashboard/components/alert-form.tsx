@@ -13,6 +13,7 @@ interface AlertFormProps {
     enabled?: boolean;
     priority?: AlertPriority;
     channel_ids?: string[];
+    include_images?: boolean;
   };
   channels: Array<{ id: string; type: string; name: string; verified: boolean }>;
 }
@@ -24,9 +25,19 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
   const [enabled, setEnabled] = useState(initial.enabled ?? true);
   const [priority, setPriority] = useState<AlertPriority>(initial.priority ?? "normal");
   const [channelIds, setChannelIds] = useState<string[]>(initial.channel_ids ?? []);
+  const [includeImages, setIncludeImages] = useState(initial.include_images ?? true);
   const [submitting, setSubmitting] = useState(false);
   const [errMsg, setErrMsg] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
+
+  // True when this alert will route to an SMS channel (Twilio) — used to warn
+  // about MMS cost when include_images is on.
+  const targetsTwilio = (() => {
+    const targeted = channelIds.length > 0
+      ? channels.filter((c) => channelIds.includes(c.id))
+      : channels;
+    return targeted.some((c) => c.type === "sms_twilio");
+  })();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +50,7 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
       enabled,
       priority,
       channel_ids: channelIds,
+      include_images: includeImages,
     };
 
     const { error } = initial.id
@@ -144,6 +156,30 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
                   </span>
                 </label>
               ))}
+            </div>
+          )}
+        </div>
+
+        <div className="pt-2 border-t border-neutral-100">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={includeImages}
+              onChange={(e) => setIncludeImages(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-medium">Include deal images in notifications</span>
+              <span className="block text-xs text-neutral-500 mt-0.5">
+                Telegram / Discord show the thumbnail above the text. ntfy / Pushover / email render inline images too.
+              </span>
+            </span>
+          </label>
+          {includeImages && targetsTwilio && (
+            <div className="mt-2 ml-6 rounded-md bg-amber-50 border border-amber-200 p-2 text-xs text-amber-900">
+              <strong>⚠️ Note for SMS:</strong> With images on, each Twilio message becomes an MMS — that&apos;s about{" "}
+              <strong>$0.02 per text</strong> instead of $0.008 (2.5× more). If you want cheap SMS, uncheck this
+              or only route this alert to non-SMS channels above.
             </div>
           )}
         </div>

@@ -23,7 +23,7 @@ const DOCS_BASE = "https://github.com/Meowssi/slickdeals-alerts/blob/main/docs/s
 const EXPECTED_FUNCTIONS = ["notifier", "telegram-webhook", "channel-verify", "send-test", "poll"];
 const EXPECTED_VAULT_SECRETS = ["notifier_url", "service_role_key"];
 // Bump when adding a new migration in supabase/migrations/.
-const EXPECTED_MIGRATIONS = 12;
+const EXPECTED_MIGRATIONS = 13;
 
 const MANAGEMENT_API = "https://api.supabase.com";
 

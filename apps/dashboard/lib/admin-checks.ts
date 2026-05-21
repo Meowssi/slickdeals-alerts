@@ -20,10 +20,10 @@ export interface Check {
 }
 
 const DOCS_BASE = "https://github.com/Meowssi/slickdeals-alerts/blob/main/docs/self-hosting.md";
-const EXPECTED_FUNCTIONS = ["notifier", "telegram-webhook", "channel-verify", "send-test"];
+const EXPECTED_FUNCTIONS = ["notifier", "telegram-webhook", "channel-verify", "send-test", "poll"];
 const EXPECTED_VAULT_SECRETS = ["notifier_url", "service_role_key"];
 // Bump when adding a new migration in supabase/migrations/.
-const EXPECTED_MIGRATIONS = 9;
+const EXPECTED_MIGRATIONS = 10;
 
 const MANAGEMENT_API = "https://api.supabase.com";
 

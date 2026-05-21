@@ -20,7 +20,22 @@ interface StartReq  { channel_id: string; action: "start" }
 interface ConfirmReq { channel_id: string; action: "confirm"; code: string }
 type Req = StartReq | ConfirmReq;
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+  const res = await handle(req);
+  for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v);
+  return res;
+});
+
+async function handle(req: Request): Promise<Response> {
   if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
 
   const auth = req.headers.get("Authorization");
@@ -54,7 +69,7 @@ Deno.serve(async (req) => {
   if (body.action === "start")   return await startVerification(supa, ch);
   if (body.action === "confirm") return await confirmVerification(supa, ch, body.code);
   return new Response("bad action", { status: 400 });
-});
+}
 
 async function startVerification(
   // deno-lint-ignore no-explicit-any

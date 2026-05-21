@@ -31,45 +31,60 @@ export default async function FeedPage({
   const supa = await supabaseServer();
   const { filter } = await searchParams;
 
-  // Fetch matches joined to deal + alert + state.
-  let q = supa
+  // alert_matches has FKs to alerts + deals, but NOT to deal_state (they only
+  // share user_id + deal_id, no FK). PostgREST can't infer that relationship,
+  // so we fetch matches and deal_state separately and merge in JS.
+  const { data: matches, error } = await supa
     .from("alert_matches")
     .select(`
       id, matched_at, alert_id, deal_id,
       alerts!inner(id, name),
-      deals!inner(id, title, url, price, store, thumbnail_url, rss_pub_at),
-      deal_state(saved, dismissed, read_at)
+      deals!inner(id, title, url, price, store, thumbnail_url, rss_pub_at)
     `)
     .order("matched_at", { ascending: false })
     .limit(200);
-
-  // Filters are applied client-ish via SQL; "saved" / "dismissed" / "unread"
-  if (filter === "saved") {
-    q = q.eq("deal_state.saved", true);
-  } else if (filter === "unread") {
-    q = q.is("deal_state.read_at", null);
-  }
-
-  const { data, error } = await q;
   if (error) return <p className="text-red-600">{error.message}</p>;
 
+  const dealIds = Array.from(new Set((matches ?? []).map((m: { deal_id: number }) => m.deal_id)));
+  const { data: states } = dealIds.length
+    ? await supa
+        .from("deal_state")
+        .select("deal_id, saved, dismissed, read_at")
+        .in("deal_id", dealIds)
+    : { data: [] };
+  const stateByDealId = new Map<number, { saved: boolean; dismissed: boolean; read_at: string | null }>();
+  for (const s of (states ?? []) as Array<{ deal_id: number; saved: boolean; dismissed: boolean; read_at: string | null }>) {
+    stateByDealId.set(s.deal_id, { saved: s.saved, dismissed: s.dismissed, read_at: s.read_at });
+  }
+
   // deno-lint-ignore no-explicit-any
-  const rows: FeedRow[] = (data ?? []).map((r: any) => ({
-    match_id: r.id,
-    matched_at: r.matched_at,
-    alert_id: r.alerts.id,
-    alert_name: r.alerts.name,
-    deal_id: r.deals.id,
-    title: r.deals.title,
-    url: r.deals.url,
-    price: r.deals.price,
-    store: r.deals.store,
-    thumbnail_url: r.deals.thumbnail_url,
-    rss_pub_at: r.deals.rss_pub_at,
-    saved: r.deal_state?.[0]?.saved ?? false,
-    dismissed: r.deal_state?.[0]?.dismissed ?? false,
-    read_at: r.deal_state?.[0]?.read_at ?? null,
-  })).filter((r: FeedRow) => filter === "dismissed" ? r.dismissed : !r.dismissed);
+  const allRows: FeedRow[] = (matches ?? []).map((r: any) => {
+    const state = stateByDealId.get(r.deals.id);
+    return {
+      match_id: r.id,
+      matched_at: r.matched_at,
+      alert_id: r.alerts.id,
+      alert_name: r.alerts.name,
+      deal_id: r.deals.id,
+      title: r.deals.title,
+      url: r.deals.url,
+      price: r.deals.price,
+      store: r.deals.store,
+      thumbnail_url: r.deals.thumbnail_url,
+      rss_pub_at: r.deals.rss_pub_at,
+      saved: state?.saved ?? false,
+      dismissed: state?.dismissed ?? false,
+      read_at: state?.read_at ?? null,
+    };
+  });
+
+  const rows: FeedRow[] = allRows.filter((r) => {
+    if (filter === "dismissed") return r.dismissed;
+    if (r.dismissed) return false;
+    if (filter === "saved") return r.saved;
+    if (filter === "unread") return r.read_at === null;
+    return true;
+  });
 
   return (
     <div>

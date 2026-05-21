@@ -26,15 +26,15 @@ interface FeedRow {
 export default async function FeedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; alert?: string }>;
 }) {
   const supa = await supabaseServer();
-  const { filter } = await searchParams;
+  const { filter, alert: alertFilter } = await searchParams;
 
   // alert_matches has FKs to alerts + deals, but NOT to deal_state (they only
   // share user_id + deal_id, no FK). PostgREST can't infer that relationship,
   // so we fetch matches and deal_state separately and merge in JS.
-  const { data: matches, error } = await supa
+  let matchesQuery = supa
     .from("alert_matches")
     .select(`
       id, matched_at, alert_id, deal_id,
@@ -43,7 +43,18 @@ export default async function FeedPage({
     `)
     .order("matched_at", { ascending: false })
     .limit(200);
+  if (alertFilter) {
+    matchesQuery = matchesQuery.eq("alert_id", alertFilter);
+  }
+  const { data: matches, error } = await matchesQuery;
   if (error) return <p className="text-red-600">{error.message}</p>;
+
+  // For the alert-filter chip row: enumerate the user's alerts (just id + name).
+  const { data: allAlerts } = await supa
+    .from("alerts")
+    .select("id, name")
+    .eq("enabled", true)
+    .order("name");
 
   const dealIds = Array.from(new Set((matches ?? []).map((m: { deal_id: number }) => m.deal_id)));
   const { data: states } = dealIds.length
@@ -86,23 +97,54 @@ export default async function FeedPage({
     return true;
   });
 
+  const buildHref = (next: { filter?: string | null; alert?: string | null }): string => {
+    const sp = new URLSearchParams();
+    const f = next.filter !== undefined ? next.filter : filter;
+    const a = next.alert  !== undefined ? next.alert  : alertFilter;
+    if (f) sp.set("filter", f);
+    if (a) sp.set("alert", a);
+    const qs = sp.toString();
+    return qs ? `/?${qs}` : "/";
+  };
+
   return (
     <div>
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Feed</h1>
         <div className="flex gap-1 text-sm">
-          <FilterTab label="All"       href="/" active={!filter} />
-          <FilterTab label="Unread"    href="/?filter=unread" active={filter === "unread"} />
-          <FilterTab label="Saved"     href="/?filter=saved" active={filter === "saved"} />
-          <FilterTab label="Dismissed" href="/?filter=dismissed" active={filter === "dismissed"} />
+          <FilterTab label="All"       href={buildHref({ filter: null })}      active={!filter} />
+          <FilterTab label="Unread"    href={buildHref({ filter: "unread" })}    active={filter === "unread"} />
+          <FilterTab label="Saved"     href={buildHref({ filter: "saved" })}     active={filter === "saved"} />
+          <FilterTab label="Dismissed" href={buildHref({ filter: "dismissed" })} active={filter === "dismissed"} />
         </div>
       </header>
+
+      {/* Alert chips */}
+      {(allAlerts ?? []).length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-1 text-xs">
+          <AlertChip
+            label="All alerts"
+            href={buildHref({ alert: null })}
+            active={!alertFilter}
+          />
+          {(allAlerts ?? []).map((a) => (
+            <AlertChip
+              key={a.id}
+              label={a.name}
+              href={buildHref({ alert: a.id })}
+              active={alertFilter === a.id}
+            />
+          ))}
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <div className="card p-8 text-center text-neutral-500">
           <p className="mb-2">No matches yet.</p>
           <p className="text-sm">
-            Once your alerts find a deal, it&apos;ll show up here in real time.
+            {alertFilter
+              ? "Nothing for this alert yet — try removing the alert filter."
+              : "Once your alerts find a deal, it'll show up here in real time."}
           </p>
         </div>
       ) : (
@@ -115,6 +157,22 @@ export default async function FeedPage({
         </ul>
       )}
     </div>
+  );
+}
+
+function AlertChip({ label, href, active }: { label: string; href: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={
+        "px-2.5 py-1 rounded-full border transition " +
+        (active
+          ? "bg-brand-500 text-white border-brand-500"
+          : "bg-white text-neutral-700 border-neutral-200 hover:border-neutral-400")
+      }
+    >
+      {label}
+    </Link>
   );
 }
 
@@ -144,13 +202,17 @@ function FeedItem({ row }: { row: FeedRow }) {
         "card p-4 flex gap-4 hover:shadow-md transition " +
         (unread ? "border-l-4 border-l-brand-500" : "")
       }>
-        {row.thumbnail_url && (
+        {row.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={row.thumbnail_url}
             alt=""
-            className="w-16 h-16 object-contain rounded bg-neutral-100"
+            className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 object-contain rounded bg-neutral-100"
           />
+        ) : (
+          <div className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 rounded bg-neutral-100 flex items-center justify-center text-3xl text-neutral-300">
+            $
+          </div>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">

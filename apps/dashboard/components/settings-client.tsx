@@ -1,11 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PROVIDER_CATALOG, getProviderMeta } from "@slickalerts/shared/providers";
 import type { NotificationChannelRow, UserSettingsRow } from "@slickalerts/shared/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { ChannelForm } from "@/components/channel-form";
+
+const TIMEZONE_FALLBACK = [
+  "UTC",
+  "America/Los_Angeles", "America/Denver", "America/Chicago", "America/New_York",
+  "America/Anchorage", "America/Phoenix", "America/Honolulu",
+  "Europe/London", "Europe/Berlin", "Europe/Paris", "Europe/Madrid", "Europe/Rome",
+  "Asia/Tokyo", "Asia/Shanghai", "Asia/Hong_Kong", "Asia/Kolkata", "Asia/Dubai",
+  "Australia/Sydney", "Pacific/Auckland",
+];
+
+function listTimezones(): string[] {
+  type WithTz = { supportedValuesOf?: (key: string) => string[] };
+  const intl = Intl as unknown as WithTz;
+  if (typeof intl.supportedValuesOf === "function") {
+    try {
+      return intl.supportedValuesOf("timeZone");
+    } catch { /* fall through */ }
+  }
+  return TIMEZONE_FALLBACK;
+}
 
 export function SettingsClient({
   settings, channels,
@@ -155,8 +175,8 @@ function PreferencesForm({ settings }: { settings: UserSettingsRow | null }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label className="block text-sm font-medium mb-1">Timezone</label>
-        <input className="input" value={tz} onChange={(e) => setTz(e.target.value)} />
-        <p className="text-xs text-neutral-500 mt-1">IANA name, e.g. America/Los_Angeles</p>
+        <TimezoneSelect value={tz} onChange={setTz} />
+        <p className="text-xs text-neutral-500 mt-1">Used for quiet-hours math.</p>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -175,6 +195,40 @@ function PreferencesForm({ settings }: { settings: UserSettingsRow | null }) {
       <div className="md:col-span-2 text-right">
         <button className="btn-primary" onClick={save}>Save preferences</button>
       </div>
+    </div>
+  );
+}
+
+function TimezoneSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const zones = useMemo(listTimezones, []);
+  // Include the user's current value even if it's not in the supported list
+  // (e.g., legacy data from a different Node/Intl version).
+  const options = useMemo(
+    () => (zones.includes(value) ? zones : [value, ...zones]),
+    [zones, value],
+  );
+
+  function useBrowserDefault() {
+    try {
+      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (browserTz) onChange(browserTz);
+    } catch { /* noop */ }
+  }
+
+  return (
+    <div className="flex gap-2">
+      <select
+        className="input flex-1"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map((tz) => (
+          <option key={tz} value={tz}>{tz}</option>
+        ))}
+      </select>
+      <button type="button" className="btn-secondary text-xs whitespace-nowrap" onClick={useBrowserDefault}>
+        Use my browser
+      </button>
     </div>
   );
 }

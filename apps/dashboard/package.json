@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --turbo",
-    "prebuild": "node scripts/apply-migrations.mjs",
+    "prebuild": "node scripts/apply-migrations.mjs && node scripts/deploy-functions.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -23,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/pg": "^8.11.0",
+    "esbuild": "^0.24.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",

@@ -9,6 +9,7 @@ const TABS = [
   { href: "/alerts",   label: "Alerts" },
   { href: "/stats",    label: "Stats" },
   { href: "/settings", label: "Settings" },
+  { href: "/setup",    label: "Setup" },
 ];
 
 export function Nav({ email }: { email: string }) {

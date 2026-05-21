@@ -7,12 +7,11 @@ export default async function SetupPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: settings } = await supa
-    .from("user_settings")
-    .select("onboarded_at")
-    .eq("user_id", user.id)
-    .single();
-  if (settings?.onboarded_at) redirect("/");
+  // /setup is reachable any time from the nav ("Setup" tab). Users may
+  // have skipped onboarding originally, or want to re-add channels later —
+  // in both cases the wizard is the right surface, not a redirect home.
+  // (The wizard's finish step stamps user_settings.onboarded_at again
+  //  on completion, which is harmless on re-runs.)
 
   const adminEmails = (process.env.ADMIN_EMAILS ?? "")
     .split(",")

@@ -6,6 +6,12 @@ import { PROVIDER_CATALOG, getProviderMeta } from "@slickalerts/shared/providers
 import type { NotificationChannelRow, UserSettingsRow } from "@slickalerts/shared/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { ChannelForm } from "@/components/channel-form";
+import { NtfyWalkthrough } from "@/components/wizards/ntfy-walkthrough";
+import { TelegramWalkthrough } from "@/components/wizards/telegram-walkthrough";
+import { DiscordWalkthrough } from "@/components/wizards/discord-walkthrough";
+import { PushoverWalkthrough } from "@/components/wizards/pushover-walkthrough";
+import { TwilioWalkthrough } from "@/components/wizards/twilio-walkthrough";
+import { ResendEmailWalkthrough } from "@/components/wizards/resend-email-walkthrough";
 
 const TIMEZONE_FALLBACK = [
   "UTC",
@@ -28,10 +34,11 @@ function listTimezones(): string[] {
 }
 
 export function SettingsClient({
-  settings, channels,
+  settings, channels, isAdmin,
 }: {
   settings: UserSettingsRow | null;
   channels: NotificationChannelRow[];
+  isAdmin: boolean;
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState<string | null>(null);
@@ -132,6 +139,7 @@ export function SettingsClient({
       {adding && (
         <AddChannelModal
           providerType={adding}
+          isAdmin={isAdmin}
           onClose={() => { setAdding(null); router.refresh(); }}
         />
       )}
@@ -234,17 +242,47 @@ function TimezoneSelect({ value, onChange }: { value: string; onChange: (v: stri
 }
 
 function AddChannelModal({
-  providerType, onClose,
-}: { providerType: string; onClose: () => void }) {
+  providerType, onClose, isAdmin,
+}: { providerType: string; onClose: () => void; isAdmin: boolean }) {
   const meta = getProviderMeta(providerType);
   if (!meta) return null;
 
+  // Per-channel walkthroughs render their own headings; the generic
+  // ChannelForm needs a wrapper title.
+  const hasOwnHeader =
+    providerType === "ntfy" ||
+    providerType === "telegram" ||
+    providerType === "discord" ||
+    providerType === "pushover" ||
+    providerType === "sms_twilio" ||
+    providerType === "email";
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="card max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-semibold mb-1">Add {meta.displayName}</h2>
-        <p className="text-sm text-neutral-600 mb-4">{meta.setup.instructions}</p>
-        <ChannelForm meta={meta} onDone={onClose} onCancel={onClose} />
+      <div className="card max-w-xl w-full p-6 max-h-[90vh] overflow-y-auto relative">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-3 right-3 w-7 h-7 rounded-full text-neutral-500 hover:bg-neutral-100 flex items-center justify-center"
+        >
+          ✕
+        </button>
+
+        {!hasOwnHeader && (
+          <>
+            <h2 className="text-xl font-semibold mb-1">Add {meta.displayName}</h2>
+            <p className="text-sm text-neutral-600 mb-4">{meta.setup.instructions}</p>
+          </>
+        )}
+
+        {providerType === "ntfy"      && <NtfyWalkthrough     onDone={onClose} onSkip={onClose} />}
+        {providerType === "telegram"  && <TelegramWalkthrough onDone={onClose} onSkip={onClose} isAdmin={isAdmin} />}
+        {providerType === "discord"   && <DiscordWalkthrough  onDone={onClose} onSkip={onClose} />}
+        {providerType === "pushover"  && <PushoverWalkthrough onDone={onClose} onSkip={onClose} isAdmin={isAdmin} />}
+        {providerType === "sms_twilio"&& <TwilioWalkthrough   onDone={onClose} onSkip={onClose} />}
+        {providerType === "email"     && <ResendEmailWalkthrough onDone={onClose} onSkip={onClose} />}
+        {!hasOwnHeader && <ChannelForm meta={meta} onDone={onClose} onCancel={onClose} />}
       </div>
     </div>
   );

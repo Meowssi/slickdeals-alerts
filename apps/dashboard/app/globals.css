@@ -24,3 +24,15 @@
     @apply rounded-lg border border-neutral-200 bg-white shadow-sm;
   }
 }
+
+/* Feed: highlight new items for 30s after they arrive via Realtime.
+ * A short pulse first, then a slow fade back to white. The class is
+ * removed by the client after 30s OR when the row is clicked. */
+@keyframes feed-row-pulse {
+  0%   { background-color: rgb(254 249 195); /* yellow-100 */ box-shadow: 0 0 0 2px rgb(250 204 21); /* yellow-400 */ }
+  40%  { background-color: rgb(254 249 195); box-shadow: 0 0 0 0 transparent; }
+  100% { background-color: rgb(255 255 255); }
+}
+.feed-row-new {
+  animation: feed-row-pulse 30s ease-out forwards;
+}

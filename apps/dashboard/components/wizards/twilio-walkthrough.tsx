@@ -10,6 +10,7 @@ type Step =
   | "verify-phone"
   | "buy-number"
   | "review-purchase"
+  | "a2p-register"
   | "trial-limits"
   | "find-creds"
   | "form"
@@ -161,11 +162,20 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
           </ul>
         </div>
 
-        <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
-          <p className="font-semibold">Not sure you want to pay?</p>
-          <p className="mt-1">
-            <strong>Telegram</strong> and <strong>ntfy</strong> are completely free and work for the same use case. Click <em>Skip</em> below and pick one of those instead. SMS is best if you have a phone that <em>only</em> does SMS (no smartphone).
+        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-900 space-y-2">
+          <p className="font-semibold">⚠️ Honest warning: US SMS through Twilio takes ~3 days to fully set up</p>
+          <p className="text-xs">
+            Since 2023, US mobile carriers (T-Mobile, AT&amp;T, Verizon) block SMS from unregistered numbers — even trial-account messages to verified phones get filtered with the &quot;A2P 10DLC&quot; error.
+            You have to register a <strong>&quot;Sole Proprietor brand&quot; + &quot;Low-Volume campaign&quot;</strong> (~$4 one-time + ~$2/mo) and wait 1-3 days for approval before SMS reliably works.
           </p>
+          <p className="text-xs">
+            The walkthrough covers every step, but if you want notifications working in the next 5 minutes, the right answer is almost always <strong>Telegram or ntfy instead</strong> (both 100% free, instant setup, no carrier filtering).
+          </p>
+        </div>
+
+        <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+          <p className="font-semibold">Still want SMS?</p>
+          <p className="mt-1">Reasons it&apos;s worth the wait: works on flip phones / dumb phones / Apple Watches without your phone, doesn&apos;t require an app, more familiar to non-techy family members. If none of those apply, hit Skip below.</p>
         </div>
 
         <div className="flex justify-between pt-2">
@@ -426,7 +436,105 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
 
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("buy-number")}>Back</button>
-          <button type="button" className="btn-primary" onClick={() => setStep("trial-limits")}>Bought it, next →</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("a2p-register")}>Bought it, next →</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "a2p-register") {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Step 5: Register A2P 10DLC (required)</h2>
+        <p className="text-sm text-neutral-700">
+          This is the step that takes 1-3 days. Skip it and your SMS gets blocked at the carrier with error <code className="bg-neutral-100 px-1 rounded">30034</code> — even on a trial account, even to your own verified phone.
+        </p>
+
+        <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 space-y-2">
+          <p className="font-semibold">📝 What you&apos;re registering</p>
+          <ul className="text-xs list-disc list-inside space-y-1">
+            <li><strong>A &quot;Sole Proprietor&quot; brand</strong> — telling US carriers who you are as an individual. ~$4 one-time fee, ~1-2 days to approve.</li>
+            <li><strong>A &quot;Low-Volume Standard&quot; campaign</strong> — what kind of messages you&apos;ll send. ~$2/month, ~1-2 days to approve after the brand is approved.</li>
+            <li><strong>Linking your number to the campaign</strong> — instant once both are approved.</li>
+          </ul>
+          <p className="text-xs">
+            Total: ~$4 setup + $2/month, ~3 days waiting. After that SMS works reliably.
+          </p>
+        </div>
+
+        <ol className="space-y-3 text-sm text-neutral-700">
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
+            <div>
+              <p className="font-medium text-neutral-800">Open Twilio&apos;s A2P 10DLC page</p>
+              <a href="https://console.twilio.com/us1/develop/sms/regulatory-compliance/a2p-10dlc/onboarding" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
+                Open the A2P registration onboarding →
+              </a>
+              <p className="text-xs text-neutral-500 mt-1">
+                Or navigate: left sidebar → <strong>Messaging</strong> → <strong>Regulatory Compliance</strong> → <strong>A2P 10DLC</strong>.
+              </p>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">2</span>
+            <div>
+              <p className="font-medium text-neutral-800">Click <em>Get Started</em> → choose &quot;Sole Proprietor&quot; brand</p>
+              <p className="text-xs text-neutral-600 mt-1">
+                You&apos;ll see options for &quot;Standard&quot; (for businesses with an EIN), &quot;Sole Proprietor&quot; (for individuals), or &quot;Low-Volume Standard&quot;.
+                Pick <strong>Sole Proprietor</strong>. It&apos;s cheaper, faster, and doesn&apos;t require a business tax ID.
+              </p>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">3</span>
+            <div>
+              <p className="font-medium text-neutral-800">Fill in the brand form</p>
+              <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
+                <li>Your legal name, address, email, mobile phone</li>
+                <li>Brand name: anything (e.g. &quot;Personal Alerts&quot;)</li>
+                <li>Vertical: pick <em>Other</em> or <em>Technology</em></li>
+                <li>Website: optional — your dashboard URL works, or skip</li>
+              </ul>
+              <p className="text-xs text-neutral-500 mt-1">Submit + pay the ~$4 fee. Approval usually takes <strong>1-2 business days</strong>.</p>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">4</span>
+            <div>
+              <p className="font-medium text-neutral-800">After brand is approved → register a campaign</p>
+              <p className="text-xs text-neutral-600 mt-1">
+                Twilio emails you when the brand is approved. Come back to the same A2P page, click <strong>Create Messaging Service</strong> or follow Twilio&apos;s prompts.
+                Choose <strong>Low-Volume Standard</strong> campaign type. Use case: <em>Account Notifications</em> (closest match for deal alerts).
+              </p>
+              <p className="text-xs text-neutral-600 mt-1">
+                Sample message Twilio asks for: paste something like{" "}
+                <code className="text-[10px] bg-neutral-100 px-1 rounded">&quot;Slickdeals Alerts: $9.99 deal on Cat6 cables. https://slickdeals.net/...&quot;</code>.
+              </p>
+              <p className="text-xs text-neutral-500 mt-1">Approval: another <strong>1-2 business days</strong>.</p>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">5</span>
+            <div>
+              <p className="font-medium text-neutral-800">Add your phone number to the campaign</p>
+              <p className="text-xs text-neutral-600 mt-1">
+                Final step. In the Messaging Service settings, add the number you bought earlier as a sender.
+                Saves immediately. From that moment on, SMS will deliver.
+              </p>
+            </div>
+          </li>
+        </ol>
+
+        <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900">
+          <p className="font-semibold">While you wait (1-3 days)</p>
+          <p className="text-xs mt-1">
+            You can finish the rest of this walkthrough and save your Twilio credentials — they&apos;ll work as soon as the registration is approved. Or just <strong>use Telegram for now</strong> and come back to swap in SMS later. Both options leave your dashboard fully functional.
+          </p>
+        </div>
+
+        <div className="flex justify-between pt-2">
+          <button type="button" className="btn-secondary" onClick={() => setStep("review-purchase")}>Back</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("trial-limits")}>I&apos;ll do this, next step →</button>
         </div>
       </div>
     );
@@ -476,7 +584,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         </div>
 
         <div className="flex justify-between pt-2">
-          <button type="button" className="btn-secondary" onClick={() => setStep("buy-number")}>Back</button>
+          <button type="button" className="btn-secondary" onClick={() => setStep("a2p-register")}>Back</button>
           <button type="button" className="btn-primary" onClick={() => setStep("find-creds")}>I get it, next →</button>
         </div>
       </div>

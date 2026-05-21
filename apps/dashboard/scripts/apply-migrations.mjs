@@ -29,8 +29,13 @@ if (!CONNECTION_STRING) {
   process.exit(0);
 }
 
+// pg-connection-string >=2.7 treats sslmode=require as verify-full, which
+// rejects Supabase's cert chain on Vercel's build runtime. Strip whatever
+// sslmode is in the URL and rely on the explicit ssl option below.
+const NORMALIZED_CS = CONNECTION_STRING.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+
 const client = new Client({
-  connectionString: CONNECTION_STRING,
+  connectionString: NORMALIZED_CS,
   ssl: { rejectUnauthorized: false },
 });
 

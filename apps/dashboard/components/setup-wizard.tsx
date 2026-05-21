@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PROVIDER_CATALOG, type ProviderMeta } from "@slickalerts/shared/providers";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { NtfyWalkthrough } from "@/components/wizards/ntfy-walkthrough";
 
 type Step =
   | { kind: "welcome" }
@@ -208,7 +209,19 @@ function ConfigureChannel(props: {
   );
 }
 
-function ChannelForm({
+function ChannelForm(props: {
+  meta: ProviderMeta;
+  onDone: () => void;
+  onSkip: () => void;
+}) {
+  // Per-channel walkthroughs override the generic form when they exist.
+  if (props.meta.type === "ntfy") {
+    return <NtfyWalkthrough onDone={props.onDone} onSkip={props.onSkip} />;
+  }
+  return <GenericChannelForm {...props} />;
+}
+
+function GenericChannelForm({
   meta, onDone, onSkip,
 }: { meta: ProviderMeta; onDone: () => void; onSkip: () => void }) {
   const [values, setValues] = useState<Record<string, string>>({});

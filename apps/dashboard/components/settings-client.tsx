@@ -118,6 +118,16 @@ export function SettingsClient({
                       {summarizeConfig(c.type, c.config)}
                     </div>
                   </div>
+                  {!c.verified_at && (
+                    <button className="btn-primary text-xs" onClick={() => setAdding(c.type)}>
+                      Finish setup
+                    </button>
+                  )}
+                  {c.verified_at && (
+                    <button className="btn-secondary text-xs" onClick={() => setAdding(c.type)}>
+                      Edit
+                    </button>
+                  )}
                   <button className="btn-secondary text-xs"
                           onClick={() => sendTest(c.id)} disabled={!c.verified_at}>
                     Send test

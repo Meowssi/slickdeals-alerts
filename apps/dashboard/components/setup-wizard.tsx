@@ -249,26 +249,38 @@ function ChannelForm({
 
     // 2. Kick off verification.
     const { data: { session } } = await supa.auth.getSession();
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/channel-verify`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          "Content-Type": "application/json",
+    let res: Response;
+    let json: { ok?: boolean; error?: string; code?: string; deeplink?: string | null };
+    try {
+      res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/channel-verify`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ channel_id: ch.id, action: "start" }),
         },
-        body: JSON.stringify({ channel_id: ch.id, action: "start" }),
-      },
-    );
-    const json = await res.json();
+      );
+      json = await res.json().catch(() => ({}));
+    } catch (fetchErr) {
+      setPhase("error");
+      setErrMsg(
+        `Could not reach the channel-verify edge function. It may not be deployed yet — ` +
+        `ask your admin to run "supabase functions deploy channel-verify" or check ` +
+        `the Functions tab in your Supabase dashboard. (${(fetchErr as Error).message})`,
+      );
+      return;
+    }
     if (!res.ok || !json.ok) {
       setPhase("error");
-      setErrMsg(json.error ?? "verification failed");
+      setErrMsg(json.error ?? `verification failed (HTTP ${res.status})`);
       return;
     }
 
     if (meta.setup.verifyMode === "telegram") {
-      setVerifyInfo({ kind: "telegram", code: json.code, deeplink: json.deeplink });
+      setVerifyInfo({ kind: "telegram", code: json.code ?? "", deeplink: json.deeplink ?? null });
       setPhase("verifying"); // user takes action in Telegram
     } else if (meta.setup.verifyMode === "sms") {
       setVerifyInfo({ kind: "sms", channelId: ch.id });
@@ -283,25 +295,33 @@ function ChannelForm({
     const supa = supabaseBrowser();
     const { data: { session } } = await supa.auth.getSession();
     const info = verifyInfo as Extract<typeof verifyInfo, { kind: "sms" }>;
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/channel-verify`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          "Content-Type": "application/json",
+    let res: Response;
+    let json: { ok?: boolean; error?: string };
+    try {
+      res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/channel-verify`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            channel_id: info.channelId,
+            action: "confirm",
+            code: smsCode.trim().toUpperCase(),
+          }),
         },
-        body: JSON.stringify({
-          channel_id: info.channelId,
-          action: "confirm",
-          code: smsCode.trim().toUpperCase(),
-        }),
-      },
-    );
-    const json = await res.json();
+      );
+      json = await res.json().catch(() => ({}));
+    } catch (fetchErr) {
+      setPhase("error");
+      setErrMsg(`Could not reach channel-verify: ${(fetchErr as Error).message}`);
+      return;
+    }
     if (!res.ok || !json.ok) {
       setPhase("error");
-      setErrMsg(json.error ?? "invalid code");
+      setErrMsg(json.error ?? `invalid code (HTTP ${res.status})`);
       return;
     }
     setPhase("verified");

@@ -71,7 +71,7 @@ function LoginForm() {
 
     if (mode === "forgot") {
       const { error } = await supa.auth.resetPasswordForEmail(email, {
-        redirectTo: `${location.origin}/auth/reset-password`,
+        redirectTo: `${location.origin}/auth/callback?next=/auth/reset-password`,
       });
       if (error) { setStatus("error"); setMsg(error.message); return; }
       setStatus("sent");

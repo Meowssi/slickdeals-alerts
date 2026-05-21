@@ -213,17 +213,13 @@ function FeedItem({ row }: { row: FeedRow }) {
         "card p-4 flex gap-4 hover:shadow-md transition " +
         (unread ? "border-l-4 border-l-brand-500" : "")
       }>
-        {row.thumbnail_url ? (
+        {row.thumbnail_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={row.thumbnail_url}
             alt=""
             className="w-[72px] h-[72px] sm:w-24 sm:h-24 shrink-0 object-contain rounded bg-neutral-100"
           />
-        ) : (
-          <div className="w-[72px] h-[72px] sm:w-24 sm:h-24 shrink-0 rounded bg-neutral-100 flex items-center justify-center text-2xl text-neutral-300">
-            $
-          </div>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">

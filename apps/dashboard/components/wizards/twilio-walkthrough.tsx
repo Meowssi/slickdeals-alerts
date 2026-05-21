@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Step =
@@ -14,7 +14,9 @@ type Step =
   | "trial-limits"
   | "find-creds"
   | "form"
-  | "verifying"
+  | "saving"
+  | "credentials-saved"
+  | "sending-sms"
   | "confirm"
   | "verified"
   | "error";
@@ -36,6 +38,28 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
   const [channelId, setChannelId] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState("");
 
+  // On mount, check if a Twilio channel already exists. If it does and isn't
+  // verified yet, skip straight to the "credentials-saved" step so the user
+  // can just hit Send verification SMS — no need to re-walk the whole guide.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supa = supabaseBrowser();
+      const { data } = await supa
+        .from("notification_channels")
+        .select("id, verified_at")
+        .eq("type", "sms_twilio")
+        .eq("name", "default")
+        .maybeSingle();
+      if (cancelled) return;
+      if (data && !data.verified_at) {
+        setChannelId(data.id);
+        setStep("credentials-saved");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const isE164 = (s: string) => /^\+[1-9]\d{6,14}$/.test(s.trim());
 
   function formValid(): boolean {
@@ -48,8 +72,8 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
     );
   }
 
-  async function startVerification() {
-    setStep("verifying");
+  async function saveCredentials() {
+    setStep("saving");
     setErrMsg("");
     const supa = supabaseBrowser();
     const config: TwilioConfig = {
@@ -84,7 +108,18 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
       chId = ch.id;
     }
     setChannelId(chId);
+    setStep("credentials-saved");
+  }
 
+  async function triggerVerificationSms() {
+    if (!channelId) {
+      setStep("error");
+      setErrMsg("No channel id. Save credentials first.");
+      return;
+    }
+    setStep("sending-sms");
+    setErrMsg("");
+    const supa = supabaseBrowser();
     const { data: { session } } = await supa.auth.getSession();
     try {
       const res = await fetch(
@@ -92,25 +127,29 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         {
           method: "POST",
           headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ channel_id: chId, action: "start" }),
+          body: JSON.stringify({ channel_id: channelId, action: "start" }),
         },
       );
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) {
-        setStep("error");
-        setErrMsg(json.error ?? `verify failed (HTTP ${res.status})`);
+        setStep("credentials-saved");
+        setErrMsg(
+          json.error?.includes("30034") || (json.error ?? "").toLowerCase().includes("unregistered")
+            ? "Twilio rejected the SMS with 'Unregistered Number' (error 30034). Your A2P 10DLC registration isn't approved yet — check both your Brand AND your Campaign in Twilio. Come back here once both show 'Approved'."
+            : `Twilio rejected the SMS: ${json.error ?? `HTTP ${res.status}`}`,
+        );
         return;
       }
     } catch (e) {
-      setStep("error");
-      setErrMsg(`Could not reach channel-verify: ${(e as Error).message}`);
+      setStep("credentials-saved");
+      setErrMsg(`Couldn't reach our verification function: ${(e as Error).message}`);
       return;
     }
     setStep("confirm");
   }
 
   async function confirmCode() {
-    setStep("verifying");
+    setStep("sending-sms");
     setErrMsg("");
     if (!channelId) return;
     const supa = supabaseBrowser();
@@ -656,12 +695,12 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
     );
   }
 
-  if (step === "form" || (step === "verifying" && !channelId)) {
+  if (step === "form" || step === "saving") {
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Step 7: Paste everything below</h2>
         <p className="text-sm text-neutral-700">
-          When you submit, we&apos;ll text your &quot;recipient&quot; phone a 6-digit code to make sure it all works.
+          We&apos;ll <strong>save these credentials</strong> so they&apos;re ready for when your A2P registration is approved. No SMS will be sent at this stage.
         </p>
 
         <div>
@@ -691,19 +730,78 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
 
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("find-creds")}>Back</button>
-          <button type="button" className="btn-primary" onClick={startVerification} disabled={!formValid()}>
-            Send verification SMS
+          <button type="button" className="btn-primary" onClick={saveCredentials} disabled={!formValid() || step === "saving"}>
+            {step === "saving" ? "Saving…" : "Save credentials"}
           </button>
         </div>
       </div>
     );
   }
 
-  if (step === "verifying") {
+  if (step === "credentials-saved") {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Step 8: Wait for A2P approval</h2>
+        <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-900">
+          ✅ Your Twilio credentials are saved.
+        </div>
+
+        <p className="text-sm text-neutral-700">
+          From here it&apos;s a waiting game. Twilio reviews your A2P registration (Brand + Campaign) and gates outbound SMS until both are approved.
+        </p>
+
+        <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 space-y-2">
+          <p className="font-semibold">📅 Expect 2-4 days total wait</p>
+          <ul className="text-xs list-disc list-inside space-y-1">
+            <li><strong>Day 1-2:</strong> Twilio reviews your <em>Sole Proprietor brand</em>. You&apos;ll get an email when it&apos;s approved.</li>
+            <li><strong>Day 2-4:</strong> Then you create the <em>Low-Volume Standard campaign</em> + attach your number. Twilio reviews that. Another email when approved.</li>
+            <li><strong>After both approved:</strong> Come back to this page and click the button below to send a real test SMS.</li>
+          </ul>
+        </div>
+
+        <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900 space-y-1">
+          <p className="font-semibold">Check status in Twilio:</p>
+          <p className="text-xs">
+            <a className="underline" href="https://console.twilio.com/us1/develop/sms/regulatory-compliance/a2p-10dlc/brands" target="_blank" rel="noreferrer">
+              Brand status →
+            </a>
+            {" "}|{" "}
+            <a className="underline" href="https://console.twilio.com/us1/develop/sms/regulatory-compliance/a2p-10dlc/campaigns" target="_blank" rel="noreferrer">
+              Campaign status →
+            </a>
+          </p>
+          <p className="text-xs">Both must read <strong>&quot;Approved&quot;</strong> before SMS will deliver.</p>
+        </div>
+
+        <p className="text-sm text-neutral-700">
+          In the meantime, your <strong>Telegram / ntfy / Discord / email</strong> channels (whichever you set up) keep working normally. Alerts won&apos;t route to SMS until you finish verification here.
+        </p>
+
+        {errMsg && (
+          <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-900">
+            <p className="font-medium">Last attempt:</p>
+            <p className="mt-1 text-xs">{errMsg}</p>
+          </div>
+        )}
+
+        <div className="flex justify-between pt-2 flex-wrap gap-2">
+          <button type="button" className="btn-secondary" onClick={onDone}>I&apos;ll come back later</button>
+          <button type="button" className="btn-primary" onClick={triggerVerificationSms}>
+            Send verification SMS now
+          </button>
+        </div>
+        <p className="text-xs text-neutral-500 text-center">
+          You can re-open this wizard any time from Settings → Add channel → SMS to retry.
+        </p>
+      </div>
+    );
+  }
+
+  if (step === "sending-sms") {
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Sending SMS…</h2>
-        <p className="text-sm text-neutral-600">Hold on a second.</p>
+        <p className="text-sm text-neutral-600">Twilio is processing the request. This takes a few seconds.</p>
       </div>
     );
   }
@@ -765,7 +863,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
       </div>
       <div className="flex justify-between pt-2">
         <button type="button" className="btn-secondary" onClick={onSkip}>Skip</button>
-        <button type="button" className="btn-primary" onClick={() => setStep("form")}>Try again</button>
+        <button type="button" className="btn-primary" onClick={() => setStep(channelId ? "credentials-saved" : "form")}>Try again</button>
       </div>
     </div>
   );

@@ -120,15 +120,13 @@ export function NtfyWalkthrough({ onDone, onSkip }: { onDone: () => void; onSkip
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Connect ntfy.sh</h2>
         <p className="text-sm text-neutral-700">
+          Free, open-source push. You subscribe to a private &quot;topic&quot; on your phone (
           <a className="underline" href="https://ntfy.sh" target="_blank" rel="noreferrer">ntfy.sh</a>{" "}
-          is a free, open-source push notification service. You subscribe to a private &quot;topic&quot; name
-          on your phone (or any device with the ntfy app or browser) and we send notifications to that topic.
+          app or browser), we send to that topic. No account needed.
         </p>
-        <ul className="text-sm text-neutral-700 list-disc list-inside space-y-1">
-          <li>No account needed — just pick a topic name.</li>
-          <li>Works on iOS, Android, desktop, web.</li>
-          <li>Privacy: anyone who knows your topic name can read it, so we pick a random one for you.</li>
-        </ul>
+        <p className="text-xs text-neutral-500">
+          Anyone who knows the topic can read it — we generate a random hard-to-guess one for you.
+        </p>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={onSkip}>Skip</button>
           <button type="button" className="btn-primary" onClick={() => setStep("topic")}>Get started</button>
@@ -226,15 +224,10 @@ export function NtfyWalkthrough({ onDone, onSkip }: { onDone: () => void; onSkip
           </a>
         </div>
 
-        <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
-          <p className="font-medium mb-1">How to subscribe:</p>
-          <ol className="list-decimal list-inside space-y-1">
-            <li>Open the ntfy app on your phone.</li>
-            <li>Tap the + button to add a subscription.</li>
-            <li>Enter the topic name above (or scan the QR if your app supports it).</li>
-            <li>If using a custom server, change the server URL in the app first.</li>
-          </ol>
-        </div>
+        <p className="text-xs text-neutral-500">
+          In the ntfy app: tap <strong>+</strong> → enter the topic above.
+          (If you&apos;re using a self-hosted server, switch to it in the app first.)
+        </p>
 
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={onSkip}>Skip test, I&apos;m done</button>

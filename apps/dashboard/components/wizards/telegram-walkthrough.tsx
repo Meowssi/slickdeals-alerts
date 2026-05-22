@@ -131,16 +131,11 @@ export function TelegramWalkthrough({
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Connect Telegram</h2>
         <p className="text-sm text-neutral-700">
-          We&apos;ll generate a unique code, you tap a link in Telegram, and your dashboard is wired up.
-          You&apos;ll get inline <strong>Save</strong>/<strong>Dismiss</strong> buttons right in your chat.
+          Free. We generate a code, you tap a link in Telegram, done. Includes inline <strong>Save</strong>/<strong>Dismiss</strong> buttons in chat.
         </p>
-        <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
-          <p className="font-medium mb-1">What you&apos;ll need:</p>
-          <ul className="list-disc list-inside space-y-1">
-            <li>Telegram app on your phone or desktop</li>
-            <li>Your deployer to have set up the bot (one-time, in <code className="bg-white px-1 rounded">/admin/setup</code>)</li>
-          </ul>
-        </div>
+        <p className="text-xs text-neutral-500">
+          Needs: Telegram app, and your deployer to have set up the bot once at <code className="bg-neutral-100 px-1 rounded">/admin/setup</code>.
+        </p>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={onSkip}>Skip</button>
           <button type="button" className="btn-primary" onClick={startVerification}>Get started</button>
@@ -161,27 +156,16 @@ export function TelegramWalkthrough({
   if (step === "needs-admin") {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Telegram bot isn&apos;t set up yet</h2>
-        <p className="text-sm text-neutral-700">
-          Telegram requires a one-time bot setup by the deployer. Once that&apos;s done, this step
-          will work for any user.
-        </p>
-        <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 space-y-2">
+        <h2 className="text-xl font-semibold">Telegram bot not set up yet</h2>
+        <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
           {isAdmin ? (
-            <>
-              <p className="font-medium">You&apos;re the deployer.</p>
-              <p>Open <a className="underline font-medium" href="/admin/setup" target="_blank" rel="noreferrer">/admin/setup</a> in a new tab, scroll to <strong>Telegram (recommended)</strong>, and follow the instructions there.</p>
-              <p>Once it&apos;s done, come back here and click <em>Try again</em>.</p>
-            </>
+            <p>You&apos;re the deployer — open <a className="underline font-medium" href="/admin/setup" target="_blank" rel="noreferrer">/admin/setup</a>, do the Telegram section (one-time), then come back and click <em>Try again</em>.</p>
           ) : (
-            <>
-              <p className="font-medium">Ask your deployer</p>
-              <p>Send them this link: <code className="bg-white px-1 rounded">/admin/setup</code> — they need to register a Telegram bot once. Then this step will work.</p>
-            </>
+            <p>Ask your deployer to do the one-time setup at <code className="bg-white px-1 rounded">/admin/setup</code>. Then click <em>Try again</em>.</p>
           )}
         </div>
         <div className="flex justify-between pt-2">
-          <button type="button" className="btn-secondary" onClick={onSkip}>Skip for now</button>
+          <button type="button" className="btn-secondary" onClick={onSkip}>Skip</button>
           <button type="button" className="btn-primary" onClick={startVerification}>Try again</button>
         </div>
       </div>

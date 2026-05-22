@@ -102,15 +102,9 @@ export function DiscordWalkthrough({ onDone, onSkip }: { onDone: () => void; onS
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Connect Discord</h2>
         <p className="text-sm text-neutral-700">
-          We&apos;ll post deal alerts to a Discord channel using a <strong>webhook URL</strong>.
-          A webhook is a unique URL Discord generates that lets external apps post messages
-          into a specific channel — no bot or extra permissions needed.
+          Free. We post deal alerts to a Discord channel via a webhook URL — no bot or extra permissions.
         </p>
-        <ul className="text-sm text-neutral-700 list-disc list-inside space-y-1">
-          <li>Free — Discord doesn&apos;t charge for webhooks.</li>
-          <li>Works in any server you can edit channel settings on.</li>
-          <li>The URL is sensitive — anyone who has it can post to that channel.</li>
-        </ul>
+        <p className="text-xs text-neutral-500">The URL is sensitive: anyone who has it can post to that channel.</p>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={onSkip}>Skip</button>
           <button type="button" className="btn-primary" onClick={() => setStep("create")}>Get started</button>
@@ -122,35 +116,16 @@ export function DiscordWalkthrough({ onDone, onSkip }: { onDone: () => void; onS
   if (step === "create") {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Create a webhook in Discord</h2>
-        <ol className="space-y-3 text-sm text-neutral-700">
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
-            <div>Open Discord (app or web at <a className="underline" href="https://discord.com/app" target="_blank" rel="noreferrer">discord.com/app</a>) and go to the server where you want alerts.</div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">2</span>
-            <div>Right-click (or long-press) the channel where alerts should appear → <strong>Edit Channel</strong>.</div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">3</span>
-            <div>In the channel settings sidebar: <strong>Integrations</strong> → <strong>Webhooks</strong> → <strong>New Webhook</strong>.</div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">4</span>
-            <div>
-              Give the webhook a name (e.g., &quot;Slickdeals Alerts&quot;) and optionally an avatar.
-              Then click <strong>Copy Webhook URL</strong>.
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">5</span>
-            <div>Paste the URL on the next screen.</div>
-          </li>
+        <h2 className="text-xl font-semibold">Create a Discord webhook</h2>
+        <ol className="list-decimal list-inside text-sm text-neutral-700 space-y-2">
+          <li>Open Discord, go to your server.</li>
+          <li>Right-click the channel where alerts should appear → <strong>Edit Channel</strong>.</li>
+          <li><strong>Integrations</strong> → <strong>Webhooks</strong> → <strong>New Webhook</strong>.</li>
+          <li>Name it (e.g. &quot;Slickdeals Alerts&quot;), click <strong>Copy Webhook URL</strong>.</li>
         </ol>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("intro")}>Back</button>
-          <button type="button" className="btn-primary" onClick={() => setStep("form")}>I&apos;ve copied the URL</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("form")}>URL copied →</button>
         </div>
       </div>
     );

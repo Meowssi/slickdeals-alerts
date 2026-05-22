@@ -105,13 +105,11 @@ export function PushoverWalkthrough({ onDone, onSkip, isAdmin }: { onDone: () =>
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Connect Pushover</h2>
         <p className="text-sm text-neutral-700">
-          <a className="underline" href="https://pushover.net" target="_blank" rel="noreferrer">Pushover</a> is a premium push-notification service ($5 one-time per platform).
-          It&apos;s the only channel that supports <strong>Emergency priority</strong> — alerts that bypass Do-Not-Disturb and keep retrying until you acknowledge.
+          Premium push ($5 one-time per platform). Only channel that supports Emergency priority (bypasses Do-Not-Disturb).
         </p>
-        <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
-          <p className="font-medium mb-1">⚠️ Costs $5 (you pay Pushover directly)</p>
-          <p>Pushover charges $5 one-time per platform you want to use (iOS, Android, Desktop). 7-day free trial included. If you don&apos;t want to pay, use Telegram or ntfy instead — both free.</p>
-        </div>
+        <p className="text-xs text-amber-700">
+          ⚠️ You pay <a className="underline" href="https://pushover.net" target="_blank" rel="noreferrer">Pushover</a> $5 per platform (iOS / Android / Desktop), 7-day trial first. Free alternatives: Telegram, ntfy.
+        </p>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={onSkip}>Skip</button>
           <button type="button" className="btn-primary" onClick={() => setStep("signup")}>Get started</button>
@@ -123,47 +121,21 @@ export function PushoverWalkthrough({ onDone, onSkip, isAdmin }: { onDone: () =>
   if (step === "signup") {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Sign up + find your User Key</h2>
-        <ol className="space-y-3 text-sm text-neutral-700">
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
-            <div>
-              <p className="font-medium text-neutral-800">Sign up at Pushover</p>
-              <a href="https://pushover.net/signup" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline text-sm">Open pushover.net/signup →</a>
-              <p className="text-xs text-neutral-500 mt-1">Free 7-day trial; pay $5 per device platform after.</p>
-            </div>
+        <h2 className="text-xl font-semibold">Get your User Key</h2>
+        <ol className="list-decimal list-inside text-sm text-neutral-700 space-y-2">
+          <li>
+            Sign up at <a className="text-blue-700 underline" href="https://pushover.net/signup" target="_blank" rel="noreferrer">pushover.net/signup</a>.
           </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">2</span>
-            <div>
-              <p className="font-medium text-neutral-800">Install the Pushover app on your device</p>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                <a className="underline" href="https://apps.apple.com/us/app/pushover-notifications/id506088175" target="_blank" rel="noreferrer">iOS</a>{" • "}
-                <a className="underline" href="https://play.google.com/store/apps/details?id=net.superblock.pushover" target="_blank" rel="noreferrer">Android</a>{" • "}
-                <a className="underline" href="https://pushover.net/clients/desktop" target="_blank" rel="noreferrer">Desktop</a>
-              </p>
-              <p className="text-xs text-neutral-500 mt-1">Sign in with the Pushover account you just made.</p>
-            </div>
+          <li>
+            Install the Pushover app —{" "}
+            <a className="text-blue-700 underline" href="https://apps.apple.com/us/app/pushover-notifications/id506088175" target="_blank" rel="noreferrer">iOS</a>{" / "}
+            <a className="text-blue-700 underline" href="https://play.google.com/store/apps/details?id=net.superblock.pushover" target="_blank" rel="noreferrer">Android</a>{" / "}
+            <a className="text-blue-700 underline" href="https://pushover.net/clients/desktop" target="_blank" rel="noreferrer">Desktop</a> — and sign in.
           </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">3</span>
-            <div>
-              <p className="font-medium text-neutral-800">Find your User Key</p>
-              <p className="text-xs text-neutral-600 mt-0.5">
-                Go to <a className="underline" href="https://pushover.net" target="_blank" rel="noreferrer">pushover.net</a> (logged in). Your <strong>User Key</strong> is in the top-right of the main dashboard.
-                It looks like: <code className="bg-neutral-100 px-1 rounded text-[10px] font-mono">u1Abc23DefGhij4kLmn5OpQrSt6Uvw</code>
-              </p>
-            </div>
+          <li>
+            Back on <a className="text-blue-700 underline" href="https://pushover.net" target="_blank" rel="noreferrer">pushover.net</a>, copy your <strong>User Key</strong> from the top-right of the dashboard (30 chars, starts with <code className="bg-neutral-100 px-1 rounded">u</code>).
           </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">4</span>
-            <div>
-              <p className="font-medium text-neutral-800">(Optional) Note a device name</p>
-              <p className="text-xs text-neutral-600 mt-0.5">
-                Below the User Key, Pushover lists your devices. If you want alerts only on one device (e.g., just your iPhone), copy that device&apos;s name. Otherwise leave blank to send to all.
-              </p>
-            </div>
-          </li>
+          <li>(Optional) Note a device name if you want alerts on only one device.</li>
         </ol>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("intro")}>Back</button>

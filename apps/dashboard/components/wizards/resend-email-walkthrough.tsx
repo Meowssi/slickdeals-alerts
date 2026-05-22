@@ -114,13 +114,8 @@ export function ResendEmailWalkthrough({ onDone, onSkip }: { onDone: () => void;
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Connect Email (via Resend)</h2>
         <p className="text-sm text-neutral-700">
-          <a className="underline" href="https://resend.com" target="_blank" rel="noreferrer">Resend</a> is a modern email API with a generous free tier.
-          We&apos;ll walk you through creating your own Resend account so emails come from <em>your</em> domain (or their sandbox) — no shared limits.
+          <a className="text-blue-700 underline" href="https://resend.com" target="_blank" rel="noreferrer">Resend</a> is an email API. Free up to 3,000 emails/month, then ~$0.40 per 1,000. You make your own account so volume is yours.
         </p>
-        <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
-          <p className="font-medium mb-1">Free up to 3,000 emails / month</p>
-          <p>Above that, ~$0.40 per 1,000. For deal-alert volume this is almost always free.</p>
-        </div>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={onSkip}>Skip</button>
           <button type="button" className="btn-primary" onClick={() => setStep("signup")}>Get started</button>
@@ -132,27 +127,14 @@ export function ResendEmailWalkthrough({ onDone, onSkip }: { onDone: () => void;
   if (step === "signup") {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">1. Create a Resend account</h2>
-        <ol className="space-y-3 text-sm text-neutral-700">
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
-            <div>
-              <p className="font-medium text-neutral-800">Sign up at Resend (free)</p>
-              <a href="https://resend.com/signup" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline text-sm">Open resend.com/signup →</a>
-              <p className="text-xs text-neutral-500 mt-0.5">No credit card needed for the free tier.</p>
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">2</span>
-            <div>
-              <p className="font-medium text-neutral-800">Verify your account email</p>
-              <p className="text-xs text-neutral-600 mt-0.5">Resend will send a confirmation link. Click it.</p>
-            </div>
-          </li>
+        <h2 className="text-xl font-semibold">Step 1: Create a Resend account</h2>
+        <ol className="list-decimal list-inside text-sm text-neutral-700 space-y-1">
+          <li>Sign up at <a className="text-blue-700 underline" href="https://resend.com/signup" target="_blank" rel="noreferrer">resend.com/signup</a> (no credit card on the free tier).</li>
+          <li>Click the confirmation link Resend emails you.</li>
         </ol>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("intro")}>Back</button>
-          <button type="button" className="btn-primary" onClick={() => setStep("verify-or-sandbox")}>Account ready</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("verify-or-sandbox")}>Account ready →</button>
         </div>
       </div>
     );
@@ -161,29 +143,19 @@ export function ResendEmailWalkthrough({ onDone, onSkip }: { onDone: () => void;
   if (step === "verify-or-sandbox") {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">2. Decide who sends the email</h2>
-        <p className="text-sm text-neutral-700">
-          Pick ONE of these for the &quot;from&quot; address:
-        </p>
-        <div className="space-y-3">
-          <div className="rounded-md border border-neutral-200 p-3 text-sm">
-            <p className="font-medium text-neutral-800">Option A — Sandbox sender (fastest)</p>
-            <p className="text-xs text-neutral-600 mt-1">
-              Use <code className="bg-neutral-100 px-1 rounded">onboarding@resend.dev</code> as the from address.
-              <strong> Limitation:</strong> it can only send to the email address you signed up with — Resend blocks all other recipients while you&apos;re on the sandbox.
-            </p>
-          </div>
-          <div className="rounded-md border border-neutral-200 p-3 text-sm">
-            <p className="font-medium text-neutral-800">Option B — Verify your own domain (best)</p>
-            <p className="text-xs text-neutral-600 mt-1">
-              In Resend → <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="underline">Domains</a> → Add Domain. Add the DNS records Resend gives you to your registrar.
-              Once verified, send <em>from</em> any address on that domain (e.g., <code className="bg-neutral-100 px-1 rounded">alerts@yourdomain.com</code>) to <em>anyone</em>.
-            </p>
-          </div>
-        </div>
+        <h2 className="text-xl font-semibold">Step 2: Pick a &quot;from&quot; address</h2>
+        <p className="text-sm text-neutral-700">Two options:</p>
+        <ul className="text-sm text-neutral-700 space-y-2">
+          <li>
+            <strong>Sandbox (fastest):</strong> use <code className="bg-neutral-100 px-1 rounded">onboarding@resend.dev</code>. Catch: can only email <em>your own</em> signup address.
+          </li>
+          <li>
+            <strong>Your own domain (best):</strong> <a className="text-blue-700 underline" href="https://resend.com/domains" target="_blank" rel="noreferrer">Resend → Domains → Add Domain</a> → add the DNS records to your registrar → send from <code className="bg-neutral-100 px-1 rounded">alerts@yourdomain.com</code> to anyone.
+          </li>
+        </ul>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("signup")}>Back</button>
-          <button type="button" className="btn-primary" onClick={() => setStep("find-key")}>Got it</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("find-key")}>Got it →</button>
         </div>
       </div>
     );
@@ -192,37 +164,15 @@ export function ResendEmailWalkthrough({ onDone, onSkip }: { onDone: () => void;
   if (step === "find-key") {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">3. Get your API key</h2>
-        <ol className="space-y-3 text-sm text-neutral-700">
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
-            <div>
-              <p className="font-medium text-neutral-800">Open Resend → API Keys</p>
-              <a href="https://resend.com/api-keys" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline text-sm">Open resend.com/api-keys →</a>
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">2</span>
-            <div>
-              <p className="font-medium text-neutral-800">Click <strong>Create API Key</strong></p>
-              <p className="text-xs text-neutral-600 mt-1">
-                Name it anything (e.g., &quot;Slickdeals Alerts&quot;). Permission: <strong>Sending access</strong> is enough.
-              </p>
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">3</span>
-            <div>
-              <p className="font-medium text-neutral-800">Copy the key</p>
-              <p className="text-xs text-neutral-600 mt-1">
-                Starts with <code className="bg-neutral-100 px-1 rounded">re_</code>. Resend shows it once — copy it now.
-              </p>
-            </div>
-          </li>
+        <h2 className="text-xl font-semibold">Step 3: Get your API key</h2>
+        <ol className="list-decimal list-inside text-sm text-neutral-700 space-y-1">
+          <li>Open <a className="text-blue-700 underline" href="https://resend.com/api-keys" target="_blank" rel="noreferrer">resend.com/api-keys</a>.</li>
+          <li>Click <strong>Create API Key</strong>. Name it &quot;Slickdeals Alerts&quot;, permission = <strong>Sending access</strong>.</li>
+          <li>Copy the key (starts with <code className="bg-neutral-100 px-1 rounded">re_</code>) — Resend only shows it once.</li>
         </ol>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("verify-or-sandbox")}>Back</button>
-          <button type="button" className="btn-primary" onClick={() => setStep("form")}>I have the key</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("form")}>I have the key →</button>
         </div>
       </div>
     );

@@ -356,7 +356,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         </div>
 
         <p className="text-sm text-neutral-700">
-          When you&apos;re done with the survey, you&apos;ll land on the <strong>Twilio Console</strong> — that&apos;s the main dashboard. The URL bar will say <code className="text-xs bg-neutral-100 px-1 rounded">console.twilio.com</code>.
+          When you&apos;re done with the survey, you&apos;ll land on the <strong>Twilio Console</strong> — that&apos;s the main dashboard. The URL bar will say <code className="text-xs bg-neutral-100 px-1 rounded">1console.twilio.com</code> (Twilio&apos;s new console; the old <code className="text-xs bg-neutral-100 px-1 rounded">console.twilio.com</code> redirects here).
         </p>
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("signup")}>Back</button>
@@ -384,7 +384,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
               <p className="text-xs text-neutral-600 mt-1">
                 If you don&apos;t see the banner, go to:
                 {" "}
-                <a className="underline text-blue-700" href="https://console.twilio.com/us1/develop/phone-numbers/manage/verified" target="_blank" rel="noreferrer">
+                <a className="underline text-blue-700" href="https://1console.twilio.com/us1/develop/phone-numbers/manage/verified" target="_blank" rel="noreferrer">
                   Phone Numbers → Verified Caller IDs
                 </a>
                 — that&apos;s the page where you add verified numbers.
@@ -435,7 +435,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
             <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
             <div>
               <p className="font-medium text-neutral-800">Go to Buy a Number</p>
-              <a href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
+              <a href="https://1console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
                 Open the buy-number page →
               </a>
               <p className="text-xs text-neutral-500 mt-1">
@@ -554,10 +554,10 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
             <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
             <div>
               <p className="font-medium text-neutral-800">Open Trust Hub → Customer Profiles</p>
-              <a href="https://console.twilio.com/us1/account/trust-hub/customer-profiles" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
+              <a href="https://1console.twilio.com/us1/trusthub/customer-profiles" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
                 Open Customer Profiles page →
               </a>
-              <p className="text-xs text-neutral-500 mt-1">Or navigate: top nav <strong>Admin</strong> → <strong>Trust Hub</strong> → <strong>Customer Profiles</strong>.</p>
+              <p className="text-xs text-neutral-500 mt-1">Or navigate via the left sidebar: <strong>Trust Hub</strong> → <strong>Customer Profiles</strong>.</p>
             </div>
           </li>
           <li className="flex gap-3">
@@ -576,7 +576,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
             <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">3</span>
             <div>
               <p className="font-medium text-neutral-800">Add a payment method + prefund $20</p>
-              <a href="https://console.twilio.com/us1/billing/manage-billing/billing-overview" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
+              <a href="https://1console.twilio.com/us1/billing/manage-billing/billing-overview" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
                 Open Billing page →
               </a>
               <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
@@ -640,11 +640,11 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
             <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
             <div>
               <p className="font-medium text-neutral-800">Open Twilio&apos;s A2P 10DLC page</p>
-              <a href="https://console.twilio.com/us1/develop/sms/regulatory-compliance/a2p-10dlc/onboarding" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
+              <a href="https://1console.twilio.com/us1/trusthub/registrations/a2p-campaigns" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
                 Open the A2P registration onboarding →
               </a>
               <p className="text-xs text-neutral-500 mt-1">
-                Or navigate: left sidebar → <strong>Messaging</strong> → <strong>Regulatory Compliance</strong> → <strong>A2P 10DLC</strong>.
+                Or navigate via the left sidebar: <strong>Trust Hub</strong> → <strong>Registrations</strong> → <strong>A2P Campaigns</strong>. (In Twilio&apos;s old console this was under <em>Messaging → Regulatory Compliance → A2P 10DLC</em>; they moved it to Trust Hub in 2026.)
               </p>
             </div>
           </li>
@@ -737,7 +737,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
           <p className="font-medium text-neutral-800">Option B: Verify additional phones</p>
           <p className="text-xs text-neutral-600">
             If you need alerts on a different phone (e.g., spouse&apos;s, work phone), go to:{" "}
-            <a className="underline text-blue-700" href="https://console.twilio.com/us1/develop/phone-numbers/manage/verified" target="_blank" rel="noreferrer">
+            <a className="underline text-blue-700" href="https://1console.twilio.com/us1/develop/phone-numbers/manage/verified" target="_blank" rel="noreferrer">
               Phone Numbers → Verified Caller IDs
             </a>
             {" "}→ <strong>Add a new number</strong> → enter the phone in E.164 format → Twilio sends it a code or calls it → enter the code.
@@ -749,7 +749,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
           <p className="font-medium text-neutral-800">Option C: Upgrade your Twilio account (paid)</p>
           <p className="text-xs text-neutral-600">
             Adding $20+ via{" "}
-            <a className="underline text-blue-700" href="https://console.twilio.com/us1/billing/manage-billing/billing-overview" target="_blank" rel="noreferrer">
+            <a className="underline text-blue-700" href="https://1console.twilio.com/us1/billing/manage-billing/billing-overview" target="_blank" rel="noreferrer">
               Billing
             </a>
             {" "}removes the trial restriction. SMS can then go to any number worldwide. Most people skip this unless they outgrow the trial.
@@ -777,8 +777,8 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
             <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
             <div>
               <p className="font-medium text-neutral-800">Open the Twilio Console homepage</p>
-              <a href="https://console.twilio.com/" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
-                Open console.twilio.com →
+              <a href="https://1console.twilio.com/" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
+                Open 1console.twilio.com →
               </a>
             </div>
           </li>
@@ -920,11 +920,11 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900 space-y-1">
           <p className="font-semibold">Check status in Twilio:</p>
           <p className="text-xs">
-            <a className="underline" href="https://console.twilio.com/us1/develop/sms/regulatory-compliance/a2p-10dlc/brands" target="_blank" rel="noreferrer">
+            <a className="underline" href="https://1console.twilio.com/us1/trusthub/registrations/a2p-brands" target="_blank" rel="noreferrer">
               Brand status →
             </a>
             {" "}|{" "}
-            <a className="underline" href="https://console.twilio.com/us1/develop/sms/regulatory-compliance/a2p-10dlc/campaigns" target="_blank" rel="noreferrer">
+            <a className="underline" href="https://1console.twilio.com/us1/trusthub/registrations/a2p-campaigns/campaigns" target="_blank" rel="noreferrer">
               Campaign status →
             </a>
           </p>

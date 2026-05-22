@@ -36,26 +36,34 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
   const [phone, setPhone] = useState("");
   const [smsCode, setSmsCode] = useState("");
   const [channelId, setChannelId] = useState<string | null>(null);
+  const [hasExistingChannel, setHasExistingChannel] = useState(false);
   const [errMsg, setErrMsg] = useState("");
 
-  // On mount, check if a Twilio channel already exists. If it does and isn't
-  // verified yet, skip straight to the "credentials-saved" step so the user
-  // can just hit Send verification SMS — no need to re-walk the whole guide.
+  // On mount, check if a Twilio channel already exists. If it does, load
+  // its config into the form state (so navigating back to the form doesn't
+  // lose anything) and remember the channelId — but DO NOT auto-skip ahead
+  // to credentials-saved. The user might have saved creds before finishing
+  // A2P registration and needs to navigate back to those steps. Instead,
+  // show an "offer to skip ahead" banner on the intro.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const supa = supabaseBrowser();
       const { data } = await supa
         .from("notification_channels")
-        .select("id, verified_at")
+        .select("id, verified_at, config")
         .eq("type", "sms_twilio")
         .eq("name", "default")
         .maybeSingle();
-      if (cancelled) return;
-      if (data && !data.verified_at) {
-        setChannelId(data.id);
-        setStep("credentials-saved");
-      }
+      if (cancelled || !data) return;
+      const cfg = (data.config ?? {}) as Partial<TwilioConfig>;
+      setChannelId(data.id);
+      setHasExistingChannel(true);
+      if (cfg.account_sid) setAccountSid(cfg.account_sid);
+      if (cfg.from_number) setFromNumber(cfg.from_number);
+      if (cfg.phone)       setPhone(cfg.phone);
+      // Auth token intentionally not pre-filled — keep secret out of the DOM.
+      // If user leaves it blank on re-save, we'll keep the existing value.
     })();
     return () => { cancelled = true; };
   }, []);
@@ -66,7 +74,9 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
     return (
       accountSid.trim().startsWith("AC") &&
       accountSid.trim().length >= 30 &&
-      authToken.trim().length >= 30 &&
+      // Auth token: required if no existing channel, otherwise can be blank to
+      // keep the stored value
+      (hasExistingChannel || authToken.trim().length >= 30) &&
       isE164(fromNumber) &&
       isE164(phone)
     );
@@ -76,19 +86,28 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
     setStep("saving");
     setErrMsg("");
     const supa = supabaseBrowser();
-    const config: TwilioConfig = {
-      account_sid: accountSid.trim(),
-      auth_token: authToken.trim(),
-      from_number: fromNumber.trim(),
-      phone: phone.trim(),
-    };
 
     const { data: existing } = await supa
       .from("notification_channels")
-      .select("id")
+      .select("id, config")
       .eq("type", "sms_twilio")
       .eq("name", "default")
       .maybeSingle();
+
+    // If user left the auth_token field blank on re-save, keep the stored one.
+    const existingConfig = (existing?.config ?? {}) as Partial<TwilioConfig>;
+    const authTokenFinal = authToken.trim() || existingConfig.auth_token || "";
+    if (!authTokenFinal) {
+      setStep("form");
+      setErrMsg("Auth token is required.");
+      return;
+    }
+    const config: TwilioConfig = {
+      account_sid: accountSid.trim(),
+      auth_token: authTokenFinal,
+      from_number: fromNumber.trim(),
+      phone: phone.trim(),
+    };
 
     let chId: string;
     if (existing) {
@@ -183,6 +202,28 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Connect SMS via Twilio</h2>
+
+        {hasExistingChannel && (
+          <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900 space-y-2">
+            <p className="font-semibold">👋 Welcome back — picking up where you left off?</p>
+            <p className="text-xs">
+              You&apos;ve already saved Twilio credentials. Pick how you want to continue:
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button type="button" className="btn-primary text-xs" onClick={() => setStep("credentials-saved")}>
+                Skip to verification
+              </button>
+              <button type="button" className="btn-secondary text-xs" onClick={() => setStep("a2p-register")}>
+                Jump to A2P registration
+              </button>
+              <button type="button" className="btn-secondary text-xs" onClick={() => setStep("form")}>
+                Review my credentials
+              </button>
+            </div>
+            <p className="text-[11px] text-blue-700 mt-1">Or walk through every step from the top below.</p>
+          </div>
+        )}
+
         <p className="text-sm text-neutral-700">
           Twilio is a paid service that sends real text messages to your phone. It works on any phone — flip phone, iPhone, Android — and doesn&apos;t need an app.
         </p>
@@ -710,8 +751,18 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         </div>
         <div>
           <label className="block text-sm font-medium text-neutral-700 mb-1">Auth Token</label>
-          <input type="password" className="input font-mono text-xs" placeholder="32-character secret" value={authToken} onChange={(e) => setAuthToken(e.target.value)} />
-          <p className="text-xs text-neutral-500 mt-1">The one you clicked the 👁 to reveal.</p>
+          <input
+            type="password"
+            className="input font-mono text-xs"
+            placeholder={hasExistingChannel ? "Leave blank to keep the saved token" : "32-character secret"}
+            value={authToken}
+            onChange={(e) => setAuthToken(e.target.value)}
+          />
+          <p className="text-xs text-neutral-500 mt-1">
+            {hasExistingChannel
+              ? "We don't display the saved token (security). Leave blank to keep using it, or paste a new one to replace."
+              : "The one you clicked the 👁 to reveal."}
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-neutral-700 mb-1">Your Twilio phone number (from)</label>
@@ -745,6 +796,19 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-900">
           ✅ Your Twilio credentials are saved.
         </div>
+
+        <details className="text-xs">
+          <summary className="cursor-pointer text-neutral-600 underline">
+            Haven&apos;t finished the setup steps yet? Click to navigate back
+          </summary>
+          <div className="mt-2 ml-2 flex flex-wrap gap-2">
+            <button type="button" className="btn-secondary text-xs" onClick={() => setStep("intro")}>← Start over (intro)</button>
+            <button type="button" className="btn-secondary text-xs" onClick={() => setStep("buy-number")}>← Buy a number</button>
+            <button type="button" className="btn-secondary text-xs" onClick={() => setStep("a2p-register")}>← A2P registration</button>
+            <button type="button" className="btn-secondary text-xs" onClick={() => setStep("find-creds")}>← Find credentials</button>
+            <button type="button" className="btn-secondary text-xs" onClick={() => setStep("form")}>← Edit credentials</button>
+          </div>
+        </details>
 
         <p className="text-sm text-neutral-700">
           From here it&apos;s a waiting game. Twilio reviews your A2P registration (Brand + Campaign) and gates outbound SMS until both are approved.

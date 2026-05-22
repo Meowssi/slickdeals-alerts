@@ -10,6 +10,7 @@ type Step =
   | "verify-phone"
   | "buy-number"
   | "review-purchase"
+  | "upgrade-account"
   | "a2p-register"
   | "trial-limits"
   | "find-creds"
@@ -213,6 +214,9 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
               <button type="button" className="btn-primary text-xs" onClick={() => setStep("credentials-saved")}>
                 Skip to verification
               </button>
+              <button type="button" className="btn-secondary text-xs" onClick={() => setStep("upgrade-account")}>
+                Jump to account upgrade
+              </button>
               <button type="button" className="btn-secondary text-xs" onClick={() => setStep("a2p-register")}>
                 Jump to A2P registration
               </button>
@@ -235,11 +239,15 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 space-y-2">
           <p className="font-semibold">💵 What it costs (you pay Twilio directly, not us)</p>
           <ul className="list-disc list-inside space-y-1 text-xs">
-            <li>About <strong>$0.008 per SMS</strong> in the US (roughly 1¢)</li>
-            <li>About <strong>$1.15/month</strong> for keeping a phone number active</li>
-            <li>You get <strong>$15.50 in free trial credit</strong> when you sign up — covers ~1,900 SMS</li>
-            <li>Twilio asks for a credit card during signup, but the trial credit comes first</li>
+            <li><strong>~$0.008 per SMS</strong> in the US (~1¢ each)</li>
+            <li><strong>~$1.15/month</strong> for keeping a phone number active</li>
+            <li><strong>~$4 one-time + ~$2/month</strong> for A2P 10DLC registration (required for US)</li>
+            <li><strong>$20 minimum prefund</strong> required to upgrade out of trial — this becomes future SMS credit, you don&apos;t lose it</li>
+            <li>You get $15.50 in trial credit at signup, but US SMS won&apos;t actually deliver until you upgrade + register A2P</li>
           </ul>
+          <p className="text-xs">
+            All-in real-world cost to get started: <strong>$20 upfront</strong> (becomes SMS credit) + <strong>~$3/month</strong> ongoing.
+          </p>
         </div>
 
         <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-900 space-y-2">
@@ -516,7 +524,89 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
 
         <div className="flex justify-between pt-2">
           <button type="button" className="btn-secondary" onClick={() => setStep("buy-number")}>Back</button>
-          <button type="button" className="btn-primary" onClick={() => setStep("a2p-register")}>Bought it, next →</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("upgrade-account")}>Bought it, next →</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "upgrade-account") {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Step 5: Upgrade your account (required before A2P)</h2>
+        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-900">
+          <p className="font-semibold">⚠️ Trial accounts CANNOT register for A2P 10DLC.</p>
+          <p className="text-xs mt-1">
+            If you skip this step and try the next one, you&apos;ll get the error: <em>&quot;You cannot register for A2P Messaging in a trial account. Please upgrade your account to register.&quot;</em>
+          </p>
+        </div>
+
+        <p className="text-sm text-neutral-700">
+          To upgrade, Twilio asks you to:
+          {" "}<strong>(1)</strong> create a Customer Profile (Trust Hub),
+          {" "}<strong>(2)</strong> add billing details,
+          {" "}<strong>(3)</strong> prefund at least <strong>$20</strong>.
+          The $20 becomes future SMS credit — you don&apos;t lose it, it just gets spent against SMS sends as you go.
+        </p>
+
+        <ol className="space-y-3 text-sm text-neutral-700">
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
+            <div>
+              <p className="font-medium text-neutral-800">Open Trust Hub → Customer Profiles</p>
+              <a href="https://console.twilio.com/us1/account/trust-hub/customer-profiles" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
+                Open Customer Profiles page →
+              </a>
+              <p className="text-xs text-neutral-500 mt-1">Or navigate: top nav <strong>Admin</strong> → <strong>Trust Hub</strong> → <strong>Customer Profiles</strong>.</p>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">2</span>
+            <div>
+              <p className="font-medium text-neutral-800">Click <em>Create a Customer Profile</em></p>
+              <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
+                <li>Pick <strong>Sole Proprietor</strong> (for personal use). Cheaper, faster, no business tax ID required.</li>
+                <li>Fill in your legal name, address, email, mobile</li>
+                <li>Provide a website (your dashboard URL is fine — or skip if optional)</li>
+              </ul>
+              <p className="text-xs text-neutral-500 mt-1">Submit. This is the same data the A2P Brand registration uses, so you only fill it once.</p>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">3</span>
+            <div>
+              <p className="font-medium text-neutral-800">Add a payment method + prefund $20</p>
+              <a href="https://console.twilio.com/us1/billing/manage-billing/billing-overview" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
+                Open Billing page →
+              </a>
+              <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
+                <li>Add a credit/debit card</li>
+                <li>Use <strong>Add Funds</strong> (or Twilio prompts you automatically) to add $20</li>
+                <li>This flips your account from &quot;Trial&quot; to &quot;Paid&quot; — confirm by checking the top-left of the console (no more orange &quot;Trial&quot; badge)</li>
+              </ul>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">4</span>
+            <div>
+              <p className="font-medium text-neutral-800">Done. You can now register A2P.</p>
+              <p className="text-xs text-neutral-600 mt-1">Click Next below to continue to A2P registration.</p>
+            </div>
+          </li>
+        </ol>
+
+        <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+          <p className="font-semibold">💡 Why Twilio gates this</p>
+          <p className="mt-1">
+            A2P 10DLC registration involves US carriers (T-Mobile, AT&amp;T, Verizon) verifying your business identity.
+            Twilio doesn&apos;t want trial fraudsters jamming up the registration system, so they only accept registrations from accounts that have skin in the game (the $20 prefund).
+            On the bright side, that $20 isn&apos;t a fee — it&apos;s prepaid SMS credit.
+          </p>
+        </div>
+
+        <div className="flex justify-between pt-2">
+          <button type="button" className="btn-secondary" onClick={() => setStep("review-purchase")}>Back</button>
+          <button type="button" className="btn-primary" onClick={() => setStep("a2p-register")}>Account upgraded, next →</button>
         </div>
       </div>
     );
@@ -525,10 +615,13 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
   if (step === "a2p-register") {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Step 5: Register A2P 10DLC (required)</h2>
+        <h2 className="text-xl font-semibold">Step 6: Register A2P 10DLC (required)</h2>
         <p className="text-sm text-neutral-700">
-          This is the step that takes 1-3 days. Skip it and your SMS gets blocked at the carrier with error <code className="bg-neutral-100 px-1 rounded">30034</code> — even on a trial account, even to your own verified phone.
+          This is the step that takes 1-3 days. Skip it and your SMS gets blocked at the carrier with error <code className="bg-neutral-100 px-1 rounded">30034</code>.
         </p>
+        <div className="rounded-md bg-blue-50 border border-blue-200 p-2 text-xs text-blue-900">
+          <strong>Note:</strong> If you haven&apos;t done <em>Step 5 (Upgrade your account)</em> yet, A2P registration will be blocked with <em>&quot;cannot register in a trial account.&quot;</em> Go back and finish that first.
+        </div>
 
         <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 space-y-2">
           <p className="font-semibold">📝 What you&apos;re registering</p>
@@ -804,6 +897,7 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
           <div className="mt-2 ml-2 flex flex-wrap gap-2">
             <button type="button" className="btn-secondary text-xs" onClick={() => setStep("intro")}>← Start over (intro)</button>
             <button type="button" className="btn-secondary text-xs" onClick={() => setStep("buy-number")}>← Buy a number</button>
+            <button type="button" className="btn-secondary text-xs" onClick={() => setStep("upgrade-account")}>← Upgrade account</button>
             <button type="button" className="btn-secondary text-xs" onClick={() => setStep("a2p-register")}>← A2P registration</button>
             <button type="button" className="btn-secondary text-xs" onClick={() => setStep("find-creds")}>← Find credentials</button>
             <button type="button" className="btn-secondary text-xs" onClick={() => setStep("form")}>← Edit credentials</button>

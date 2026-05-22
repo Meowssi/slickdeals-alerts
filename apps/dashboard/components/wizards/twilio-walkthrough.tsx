@@ -617,96 +617,153 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Step 6: Register A2P 10DLC (required)</h2>
         <p className="text-sm text-neutral-700">
-          This is the step that takes 1-3 days. Skip it and your SMS gets blocked at the carrier with error <code className="bg-neutral-100 px-1 rounded">30034</code>.
+          The longest waiting step. Two things have to be approved in order: <strong>Brand</strong> first, then <strong>Campaign</strong>. Total ~3 days. Skip it and SMS gets blocked with error <code className="bg-neutral-100 px-1 rounded">30034</code>.
         </p>
         <div className="rounded-md bg-blue-50 border border-blue-200 p-2 text-xs text-blue-900">
           <strong>Note:</strong> If you haven&apos;t done <em>Step 5 (Upgrade your account)</em> yet, A2P registration will be blocked with <em>&quot;cannot register in a trial account.&quot;</em> Go back and finish that first.
         </div>
 
-        <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 space-y-2">
-          <p className="font-semibold">📝 What you&apos;re registering</p>
-          <ul className="text-xs list-disc list-inside space-y-1">
-            <li><strong>A &quot;Sole Proprietor&quot; brand</strong> — telling US carriers who you are as an individual. ~$4 one-time fee, ~1-2 days to approve.</li>
-            <li><strong>A &quot;Low-Volume Standard&quot; campaign</strong> — what kind of messages you&apos;ll send. ~$2/month, ~1-2 days to approve after the brand is approved.</li>
-            <li><strong>Linking your number to the campaign</strong> — instant once both are approved.</li>
-          </ul>
-          <p className="text-xs">
-            Total: ~$4 setup + $2/month, ~3 days waiting. After that SMS works reliably.
+        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-900">
+          <p className="font-semibold">⚠️ Critical order — do these in sequence</p>
+          <p className="text-xs mt-1">
+            Twilio&apos;s console has tabs for both <strong>Brands</strong> and <strong>Campaigns</strong>. Don&apos;t start on Campaigns — Twilio won&apos;t let you create one until a Brand is approved.
+            Follow Part A first, wait for the email, then do Part B.
           </p>
         </div>
 
-        <ol className="space-y-3 text-sm text-neutral-700">
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">1</span>
-            <div>
-              <p className="font-medium text-neutral-800">Open Twilio&apos;s A2P 10DLC page</p>
-              <a href="https://1console.twilio.com/us1/trusthub/registrations/a2p-campaigns" target="_blank" rel="noreferrer" className="inline-block mt-1 text-blue-700 underline">
-                Open the A2P registration onboarding →
-              </a>
-              <p className="text-xs text-neutral-500 mt-1">
-                Or navigate via the left sidebar: <strong>Trust Hub</strong> → <strong>Registrations</strong> → <strong>A2P Campaigns</strong>. (In Twilio&apos;s old console this was under <em>Messaging → Regulatory Compliance → A2P 10DLC</em>; they moved it to Trust Hub in 2026.)
-              </p>
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">2</span>
-            <div>
-              <p className="font-medium text-neutral-800">Click <em>Get Started</em> → choose &quot;Sole Proprietor&quot; brand</p>
-              <p className="text-xs text-neutral-600 mt-1">
-                You&apos;ll see options for &quot;Standard&quot; (for businesses with an EIN), &quot;Sole Proprietor&quot; (for individuals), or &quot;Low-Volume Standard&quot;.
-                Pick <strong>Sole Proprietor</strong>. It&apos;s cheaper, faster, and doesn&apos;t require a business tax ID.
-              </p>
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">3</span>
-            <div>
-              <p className="font-medium text-neutral-800">Fill in the brand form</p>
-              <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
-                <li>Your legal name, address, email, mobile phone</li>
-                <li>Brand name: anything (e.g. &quot;Personal Alerts&quot;)</li>
-                <li>Vertical: pick <em>Other</em> or <em>Technology</em></li>
-                <li>Website: optional — your dashboard URL works, or skip</li>
-              </ul>
-              <p className="text-xs text-neutral-500 mt-1">Submit + pay the ~$4 fee. Approval usually takes <strong>1-2 business days</strong>.</p>
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">4</span>
-            <div>
-              <p className="font-medium text-neutral-800">After brand is approved → register a campaign</p>
-              <p className="text-xs text-neutral-600 mt-1">
-                Twilio emails you when the brand is approved. Come back to the same A2P page, click <strong>Create Messaging Service</strong> or follow Twilio&apos;s prompts.
-                Choose <strong>Low-Volume Standard</strong> campaign type. Use case: <em>Account Notifications</em> (closest match for deal alerts).
-              </p>
-              <p className="text-xs text-neutral-600 mt-1">
-                Sample message Twilio asks for: paste something like{" "}
-                <code className="text-[10px] bg-neutral-100 px-1 rounded">&quot;Slickdeals Alerts: $9.99 deal on Cat6 cables. https://slickdeals.net/...&quot;</code>.
-              </p>
-              <p className="text-xs text-neutral-500 mt-1">Approval: another <strong>1-2 business days</strong>.</p>
-            </div>
-          </li>
-          <li className="flex gap-3">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">5</span>
-            <div>
-              <p className="font-medium text-neutral-800">Add your phone number to the campaign</p>
-              <p className="text-xs text-neutral-600 mt-1">
-                Final step. In the Messaging Service settings, add the number you bought earlier as a sender.
-                Saves immediately. From that moment on, SMS will deliver.
-              </p>
-            </div>
-          </li>
-        </ol>
+        <div className="rounded-md border-2 border-neutral-300 p-4 space-y-3">
+          <h3 className="font-semibold text-base">Part A — Register your Brand (do this FIRST)</h3>
+          <a href="https://1console.twilio.com/us1/trusthub/registrations/a2p-brands" target="_blank" rel="noreferrer" className="inline-block text-blue-700 underline">
+            Open the A2P Brands page →
+          </a>
+          <p className="text-xs text-neutral-500">
+            Or sidebar: <strong>Trust Hub</strong> → <strong>Registrations</strong> → <strong>A2P Brands</strong>.
+          </p>
+          <ol className="space-y-3 text-sm text-neutral-700">
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">A1</span>
+              <div>
+                <p className="font-medium text-neutral-800">Click <em>Create a Brand</em> (or <em>Register a Brand</em>)</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">A2</span>
+              <div>
+                <p className="font-medium text-neutral-800">Pick <strong>Sole Proprietor</strong></p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Other options (&quot;Standard&quot;, &quot;Low-Volume Standard&quot;) are for businesses with an EIN. Sole Proprietor is for individuals — cheaper, faster, no business tax ID required.
+                </p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">A3</span>
+              <div>
+                <p className="font-medium text-neutral-800">Fill the brand form</p>
+                <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
+                  <li>Brand name: anything readable (e.g. <em>&quot;Personal Alerts&quot;</em>)</li>
+                  <li>Vertical: <em>Other</em> or <em>Technology</em></li>
+                  <li>Legal name, address, email, mobile phone — uses the Customer Profile from Step 5</li>
+                  <li>Website: your dashboard URL is fine; can leave blank</li>
+                </ul>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">A4</span>
+              <div>
+                <p className="font-medium text-neutral-800">Submit + pay ~$4 one-time</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Twilio forwards your data to <em>The Campaign Registry</em> (TCR). Status goes from <em>Pending</em> → <em>Approved</em> in <strong>~1-2 business days</strong>. Twilio emails you when done. <strong>Stop here and wait for that email before doing Part B.</strong>
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <div className="rounded-md border-2 border-neutral-300 p-4 space-y-3">
+          <h3 className="font-semibold text-base">Part B — Register your Campaign (only AFTER Brand is approved)</h3>
+          <a href="https://1console.twilio.com/us1/trusthub/registrations/a2p-campaigns/campaigns" target="_blank" rel="noreferrer" className="inline-block text-blue-700 underline">
+            Open the A2P Campaigns page →
+          </a>
+          <p className="text-xs text-neutral-500">
+            Or sidebar: <strong>Trust Hub</strong> → <strong>Registrations</strong> → <strong>A2P Campaigns</strong>.
+          </p>
+          <ol className="space-y-3 text-sm text-neutral-700">
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B1</span>
+              <div>
+                <p className="font-medium text-neutral-800">Click <em>Create a Campaign</em></p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B2</span>
+              <div>
+                <p className="font-medium text-neutral-800">Select your Brand</p>
+                <p className="text-xs text-neutral-600 mt-1">Pick the approved Sole Proprietor brand from Part A. Type defaults to <strong>Low-Volume Standard</strong> for Sole Proprietor brands.</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B3</span>
+              <div>
+                <p className="font-medium text-neutral-800">Use case + description</p>
+                <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
+                  <li>Use case: <strong>Account Notifications</strong> (closest match for deal alerts)</li>
+                  <li>Campaign description: <em>&quot;Personal Slickdeals deal alerts to my own phone via a self-hosted dashboard.&quot;</em></li>
+                </ul>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B4</span>
+              <div>
+                <p className="font-medium text-neutral-800">Sample messages (Twilio requires 2)</p>
+                <p className="text-xs text-neutral-600 mt-1">Paste these exact strings, one per sample box:</p>
+                <div className="mt-1 space-y-1">
+                  <code className="block text-[10px] bg-neutral-100 p-2 rounded font-mono">
+                    {`[Slickdeals Alerts] $9.99 — 50ft Cat6 Cable @ Best Buy. slickdeals.net/f/12345`}
+                  </code>
+                  <code className="block text-[10px] bg-neutral-100 p-2 rounded font-mono">
+                    {`[Slickdeals Alerts] $42 — Anker 65W USB-C @ Amazon. slickdeals.net/f/67890`}
+                  </code>
+                </div>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B5</span>
+              <div>
+                <p className="font-medium text-neutral-800">Opt-in language</p>
+                <p className="text-xs text-neutral-600 mt-1">Pick &quot;Other&quot; if asked. Describe how recipients opt in:</p>
+                <code className="block mt-1 text-[10px] bg-neutral-100 p-2 rounded font-mono">
+                  {`This is a personal-use deployment. The recipient is the same person operating the dashboard; they opted in by registering their own phone number as the recipient in the dashboard's settings.`}
+                </code>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B6</span>
+              <div>
+                <p className="font-medium text-neutral-800">Submit + pay ~$2/month</p>
+                <p className="text-xs text-neutral-600 mt-1">Approval: another <strong>1-2 business days</strong>.</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B7</span>
+              <div>
+                <p className="font-medium text-neutral-800">Attach your Twilio number to the Campaign</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Once approved, you&apos;ll be prompted (or go to the campaign&apos;s Senders tab) to <strong>Add a Sender</strong>. Pick the phone number you bought in Step 4. Saves immediately. SMS deliveries unlock from that moment.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
 
         <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900">
-          <p className="font-semibold">While you wait (1-3 days)</p>
+          <p className="font-semibold">While you wait (1-3 days total)</p>
           <p className="text-xs mt-1">
-            You can finish the rest of this walkthrough and save your Twilio credentials — they&apos;ll work as soon as the registration is approved. Or just <strong>use Telegram for now</strong> and come back to swap in SMS later. Both options leave your dashboard fully functional.
+            You can finish the rest of this walkthrough and save your Twilio credentials — they&apos;ll start working the moment B7 (attach number) lands. Or just <strong>use Telegram for now</strong> and come back to enable SMS later. Both options leave your dashboard fully functional.
           </p>
         </div>
 
         <div className="flex justify-between pt-2">
-          <button type="button" className="btn-secondary" onClick={() => setStep("review-purchase")}>Back</button>
+          <button type="button" className="btn-secondary" onClick={() => setStep("upgrade-account")}>Back</button>
           <button type="button" className="btn-primary" onClick={() => setStep("trial-limits")}>I&apos;ll do this, next step →</button>
         </div>
       </div>

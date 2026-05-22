@@ -617,17 +617,18 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Step 6: Register A2P 10DLC (required)</h2>
         <p className="text-sm text-neutral-700">
-          The longest waiting step. Two things have to be approved in order: <strong>Brand</strong> first, then <strong>Campaign</strong>. Total ~3 days. Skip it and SMS gets blocked with error <code className="bg-neutral-100 px-1 rounded">30034</code>.
+          The actual gate that keeps SMS from delivering. Two things have to be approved in order: <strong>Brand</strong> first, then <strong>Campaign</strong>.
+          For Sole Proprietor brands, the brand approves in <strong>minutes</strong> (a phone confirmation, not a multi-day TCR review), and the campaign typically approves within an hour.
+          Skip this and SMS gets blocked with error <code className="bg-neutral-100 px-1 rounded">30034</code>.
         </p>
         <div className="rounded-md bg-blue-50 border border-blue-200 p-2 text-xs text-blue-900">
-          <strong>Note:</strong> If you haven&apos;t done <em>Step 5 (Upgrade your account)</em> yet, A2P registration will be blocked with <em>&quot;cannot register in a trial account.&quot;</em> Go back and finish that first.
+          <strong>Prereq:</strong> Step 5 (Upgrade your account) must be done first. A2P registration is blocked on trial accounts.
         </div>
 
         <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-900">
-          <p className="font-semibold">⚠️ Critical order — do these in sequence</p>
+          <p className="font-semibold">⚠️ Order matters</p>
           <p className="text-xs mt-1">
-            Twilio&apos;s console has tabs for both <strong>Brands</strong> and <strong>Campaigns</strong>. Don&apos;t start on Campaigns — Twilio won&apos;t let you create one until a Brand is approved.
-            Follow Part A first, wait for the email, then do Part B.
+            Twilio&apos;s console has tabs for both <strong>Brands</strong> and <strong>Campaigns</strong>. Don&apos;t start on Campaigns — Twilio won&apos;t let you create one until your Brand is confirmed. Do Part A first.
           </p>
         </div>
 
@@ -672,8 +673,18 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
               <div>
                 <p className="font-medium text-neutral-800">Submit + pay ~$4 one-time</p>
                 <p className="text-xs text-neutral-600 mt-1">
-                  Twilio forwards your data to <em>The Campaign Registry</em> (TCR). Status goes from <em>Pending</em> → <em>Approved</em> in <strong>~1-2 business days</strong>. Twilio emails you when done. <strong>Stop here and wait for that email before doing Part B.</strong>
+                  Twilio charges $4 (one-time) to register the Sole Proprietor brand.
                 </p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">A5</span>
+              <div>
+                <p className="font-medium text-neutral-800">Confirm the phone number Twilio sends a code to</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Twilio texts a verification code to the mobile number on the brand. Enter it back in the console. <strong>This is what unlocks the brand</strong> — for Sole Proprietor, brand approval happens in minutes once you confirm.
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">Status flips to <strong>Approved</strong>. Move straight on to Part B.</p>
               </div>
             </li>
           </ol>
@@ -687,12 +698,18 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
           <p className="text-xs text-neutral-500">
             Or sidebar: <strong>Trust Hub</strong> → <strong>Registrations</strong> → <strong>A2P Campaigns</strong>.
           </p>
+          <p className="text-xs text-neutral-700">
+            <strong>Cost:</strong> Sole Proprietor campaigns are <strong>$2/month</strong> + $15 one-time per campaign registration.
+            Charged from your prefunded balance.
+          </p>
           <ol className="space-y-3 text-sm text-neutral-700">
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B1</span>
               <div>
                 <p className="font-medium text-neutral-800">Click <em>Create a Campaign</em></p>
-                <p className="text-xs text-neutral-600 mt-1">The brand should already be pre-filled to your approved one (e.g. <code className="bg-neutral-100 px-1 rounded">sdalerts</code>).</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Twilio opens a modal titled <strong>&quot;Create an A2P Campaign&quot;</strong> with your brand pre-filled.
+                </p>
               </div>
             </li>
             <li className="flex gap-3">
@@ -703,63 +720,110 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
                   Twilio asks: <em>&quot;Use an existing Messaging Service or create a new one?&quot;</em>
                 </p>
                 <p className="text-xs text-neutral-600 mt-1">
-                  <strong>Pick &quot;Create a new Messaging Service&quot;</strong> — cleaner than reusing a generic one Twilio auto-created.
-                  Name it something obvious like <code className="bg-neutral-100 px-1 rounded">Slickdeals Alerts</code>.
+                  <strong>Pick &quot;Create a new Messaging Service&quot;</strong> — cleaner than reusing the auto-generated one.
+                  When prompted for a name, use <code className="bg-neutral-100 px-1 rounded">Slickdeals Alerts</code>.
                 </p>
                 <p className="text-xs text-neutral-500 mt-1">
-                  What&apos;s a Messaging Service? A Twilio container that holds your phone number(s) and the campaign together. We use one service per campaign.
+                  What&apos;s a Messaging Service? A Twilio container that holds your phone number(s) and the campaign together.
                 </p>
-                <p className="text-xs text-neutral-500 mt-1">Click <strong>Get started</strong> to advance.</p>
+                <p className="text-xs text-neutral-500 mt-1">Click <strong>Get started</strong>.</p>
               </div>
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B3</span>
               <div>
-                <p className="font-medium text-neutral-800">Use case + description</p>
-                <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
-                  <li>Use case: <strong>Account Notifications</strong> (closest match for deal alerts)</li>
-                  <li>Campaign description: <em>&quot;Personal Slickdeals deal alerts to my own phone via a self-hosted dashboard.&quot;</em></li>
-                </ul>
+                <p className="font-medium text-neutral-800">&quot;Basic information&quot; screen → registration name</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Field: <strong>A2P Campaign registration name</strong> — just an internal label. Type something like:
+                </p>
+                <code className="block mt-1 text-[10px] bg-neutral-100 p-2 rounded font-mono">Slickdeals Alerts campaign</code>
+                <p className="text-xs text-neutral-500 mt-1">Click <strong>Next</strong>.</p>
               </div>
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B4</span>
               <div>
-                <p className="font-medium text-neutral-800">Sample messages (Twilio requires 2)</p>
-                <p className="text-xs text-neutral-600 mt-1">Paste these exact strings, one per sample box:</p>
-                <div className="mt-1 space-y-1">
-                  <code className="block text-[10px] bg-neutral-100 p-2 rounded font-mono">
-                    {`[Slickdeals Alerts] $9.99 — 50ft Cat6 Cable @ Best Buy. slickdeals.net/f/12345`}
-                  </code>
-                  <code className="block text-[10px] bg-neutral-100 p-2 rounded font-mono">
-                    {`[Slickdeals Alerts] $42 — Anker 65W USB-C @ Amazon. slickdeals.net/f/67890`}
-                  </code>
-                </div>
+                <p className="font-medium text-neutral-800">&quot;Use case&quot; dropdown</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Only one option: <strong>Sole Proprietor</strong> (because your brand is Sole Proprietor). Pick it. Click <strong>Next</strong>.
+                </p>
               </div>
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B5</span>
               <div>
-                <p className="font-medium text-neutral-800">Opt-in language</p>
-                <p className="text-xs text-neutral-600 mt-1">Pick &quot;Other&quot; if asked. Describe how recipients opt in:</p>
+                <p className="font-medium text-neutral-800">Campaign description</p>
+                <p className="text-xs text-neutral-600 mt-1">Paste this:</p>
                 <code className="block mt-1 text-[10px] bg-neutral-100 p-2 rounded font-mono">
-                  {`This is a personal-use deployment. The recipient is the same person operating the dashboard; they opted in by registering their own phone number as the recipient in the dashboard's settings.`}
+                  Personal Slickdeals deal alerts to my own phone via a self-hosted dashboard
                 </code>
+                <p className="text-xs text-neutral-500 mt-1">Click <strong>Next</strong>.</p>
               </div>
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B6</span>
               <div>
-                <p className="font-medium text-neutral-800">Submit + pay ~$2/month</p>
-                <p className="text-xs text-neutral-600 mt-1">Approval: another <strong>1-2 business days</strong>.</p>
+                <p className="font-medium text-neutral-800">Recipient consent (Message flow)</p>
+                <p className="text-xs text-neutral-600 mt-1">Checkboxes for &quot;How do end-users opt in?&quot; — check <strong>Web Form</strong> (since you opt in by saving the channel in our dashboard&apos;s settings form).</p>
+                <p className="text-xs text-neutral-600 mt-1"><em>How do end-users consent to receive messages?</em> text box — paste:</p>
+                <code className="block mt-1 text-[10px] bg-neutral-100 p-2 rounded font-mono">
+                  {`The end-user opts in by entering their own phone number in the recipient field of the SMS channel form in the dashboard's settings, then confirming a 6-digit verification code sent to that number. This is a personal-use deployment — recipient is the same individual operating the dashboard.`}
+                </code>
               </div>
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B7</span>
               <div>
-                <p className="font-medium text-neutral-800">After approval, attach your Twilio number to the Messaging Service</p>
+                <p className="font-medium text-neutral-800">Message contents</p>
+                <p className="text-xs text-neutral-600 mt-1">Check <strong>Embedded links</strong> (we send slickdeals.net deal URLs). Leave the others unchecked — we don&apos;t do phone numbers / lending / age-gated content.</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B8</span>
+              <div>
+                <p className="font-medium text-neutral-800">Privacy policy + Terms URLs</p>
                 <p className="text-xs text-neutral-600 mt-1">
-                  Open the Messaging Service you created (<em>Slickdeals Alerts</em>) → <strong>Sender Pool</strong> → <strong>Add Senders</strong> → pick the phone number you bought in Step 4. Saves immediately.
+                  Both are required. We host both on your own deployment:
+                </p>
+                <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
+                  <li>Privacy policy: <code className="bg-neutral-100 px-1 rounded">https://YOUR-DASHBOARD/privacy</code></li>
+                  <li>Terms &amp; conditions: <code className="bg-neutral-100 px-1 rounded">https://YOUR-DASHBOARD/terms</code></li>
+                </ul>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Replace <code className="bg-neutral-100 px-1 rounded">YOUR-DASHBOARD</code> with the URL of this dashboard (the one in your browser&apos;s address bar). Both pages render the required disclosures (non-sharing of mobile numbers, message frequency, &quot;message and data rates may apply&quot;).
+                </p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B9</span>
+              <div>
+                <p className="font-medium text-neutral-800">Sample messages (if asked — 2 messages)</p>
+                <p className="text-xs text-neutral-600 mt-1">Paste:</p>
+                <div className="mt-1 space-y-1">
+                  <code className="block text-[10px] bg-neutral-100 p-2 rounded font-mono">
+                    [Slickdeals Alerts] $9.99 — 50ft Cat6 Cable @ Best Buy. slickdeals.net/f/12345
+                  </code>
+                  <code className="block text-[10px] bg-neutral-100 p-2 rounded font-mono">
+                    [Slickdeals Alerts] $42 — Anker 65W USB-C @ Amazon. slickdeals.net/f/67890
+                  </code>
+                </div>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B10</span>
+              <div>
+                <p className="font-medium text-neutral-800">Submit + pay ~$15 + $2/mo</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Per-request $15 charge + $2/month ongoing. Sole Proprietor campaigns typically approve <strong>within an hour</strong> (sometimes immediately) — not the 1-2 days the older walkthroughs warned about. Check the campaign status in Trust Hub; once it reads <strong>Approved</strong>, move on.
+                </p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B11</span>
+              <div>
+                <p className="font-medium text-neutral-800">Attach your Twilio number to the Messaging Service</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Open the Messaging Service (<em>Slickdeals Alerts</em>) → <strong>Sender Pool</strong> → <strong>Add Senders</strong> → pick the phone number you bought in Step 4. Saves immediately.
                 </p>
                 <p className="text-xs text-neutral-500 mt-1">
                   SMS deliveries through Twilio start working the moment this attachment is saved. Come back to this wizard and hit <em>Send verification SMS now</em>.
@@ -770,9 +834,12 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         </div>
 
         <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900">
-          <p className="font-semibold">While you wait (1-3 days total)</p>
+          <p className="font-semibold">Sole Proprietor timing</p>
           <p className="text-xs mt-1">
-            You can finish the rest of this walkthrough and save your Twilio credentials — they&apos;ll start working the moment B7 (attach number) lands. Or just <strong>use Telegram for now</strong> and come back to enable SMS later. Both options leave your dashboard fully functional.
+            Brand: confirms in <strong>minutes</strong> via the SMS code in A5. Campaign: typically <strong>under an hour</strong>, sometimes immediate. Total: same-day, not multi-day.
+          </p>
+          <p className="text-xs mt-1">
+            (Standard / Low-Volume brands have longer review by The Campaign Registry — but you&apos;re not using those.)
           </p>
         </div>
 
@@ -980,12 +1047,15 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
         </p>
 
         <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 space-y-2">
-          <p className="font-semibold">📅 Expect 2-4 days total wait</p>
+          <p className="font-semibold">📅 Sole Proprietor timeline</p>
           <ul className="text-xs list-disc list-inside space-y-1">
-            <li><strong>Day 1-2:</strong> Twilio reviews your <em>Sole Proprietor brand</em>. You&apos;ll get an email when it&apos;s approved.</li>
-            <li><strong>Day 2-4:</strong> Then you create the <em>Low-Volume Standard campaign</em> + attach your number. Twilio reviews that. Another email when approved.</li>
-            <li><strong>After both approved:</strong> Come back to this page and click the button below to send a real test SMS.</li>
+            <li><strong>Brand:</strong> confirms in <em>minutes</em> after you enter the SMS code Twilio sends.</li>
+            <li><strong>Campaign:</strong> typically approves within <em>an hour</em>, sometimes immediately. Watch the status in Trust Hub.</li>
+            <li><strong>Attach number → SMS works:</strong> the moment the number lands in the Messaging Service&apos;s Sender Pool.</li>
           </ul>
+          <p className="text-xs">
+            If you finish A2P right after seeing this page, click <strong>&quot;Send verification SMS now&quot;</strong> below to wrap up.
+          </p>
         </div>
 
         <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900 space-y-1">

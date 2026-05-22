@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { CopyableUrl } from "@/components/footer";
 
 type Step =
   | "intro"
@@ -781,16 +782,38 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B8</span>
               <div>
-                <p className="font-medium text-neutral-800">Privacy policy + Terms URLs</p>
+                <p className="font-medium text-neutral-800">Privacy policy + Terms URLs (required)</p>
                 <p className="text-xs text-neutral-600 mt-1">
-                  Both are required. We host both on your own deployment:
+                  Paste these from your own deployment (already hosted, no extra setup):
                 </p>
-                <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-0.5">
-                  <li>Privacy policy: <code className="bg-neutral-100 px-1 rounded">https://YOUR-DASHBOARD/privacy</code></li>
-                  <li>Terms &amp; conditions: <code className="bg-neutral-100 px-1 rounded">https://YOUR-DASHBOARD/terms</code></li>
-                </ul>
+                <div className="mt-2 space-y-2">
+                  <div>
+                    <p className="text-[11px] text-neutral-500 mb-1">Privacy policy URL:</p>
+                    <CopyableUrl path="/privacy" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-neutral-500 mb-1">Terms &amp; conditions URL:</p>
+                    <CopyableUrl path="/terms" />
+                  </div>
+                </div>
+                <p className="text-xs text-neutral-600 mt-2">
+                  Both pages render the carrier-required disclosures (non-sharing of mobile numbers, message frequency, &quot;message and data rates may apply&quot;). They&apos;re also linked from the dashboard footer.
+                </p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B8b</span>
+              <div>
+                <p className="font-medium text-neutral-800">Opt-in proof URL (when asked)</p>
                 <p className="text-xs text-neutral-600 mt-1">
-                  Replace <code className="bg-neutral-100 px-1 rounded">YOUR-DASHBOARD</code> with the URL of this dashboard (the one in your browser&apos;s address bar). Both pages render the required disclosures (non-sharing of mobile numbers, message frequency, &quot;message and data rates may apply&quot;).
+                  Twilio may also ask for a public form showing exactly how users opt in. Paste:
+                </p>
+                <div className="mt-2">
+                  <p className="text-[11px] text-neutral-500 mb-1">SMS opt-in page:</p>
+                  <CopyableUrl path="/sms-opt-in" />
+                </div>
+                <p className="text-xs text-neutral-600 mt-2">
+                  This is a publicly-accessible page mirroring the dashboard&apos;s SMS signup form, with all carrier-required elements (phone field, unchecked consent checkbox, frequency/rates disclosure, HELP/STOP language, Terms/Privacy links).
                 </p>
               </div>
             </li>

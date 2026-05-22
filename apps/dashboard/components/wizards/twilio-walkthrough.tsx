@@ -251,11 +251,13 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
           </p>
         </div>
 
-        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-900 space-y-2">
-          <p className="font-semibold">⚠️ Honest warning: US SMS through Twilio takes ~3 days to fully set up</p>
+        <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 space-y-2">
+          <p className="font-semibold">⚠️ US SMS through Twilio needs a one-time registration (a few hours to a day)</p>
           <p className="text-xs">
-            Since 2023, US mobile carriers (T-Mobile, AT&amp;T, Verizon) block SMS from unregistered numbers — even trial-account messages to verified phones get filtered with the &quot;A2P 10DLC&quot; error.
-            You have to register a <strong>&quot;Sole Proprietor brand&quot; + &quot;Low-Volume campaign&quot;</strong> (~$4 one-time + ~$2/mo) and wait 1-3 days for approval before SMS reliably works.
+            Since 2023, US carriers (T-Mobile, AT&amp;T, Verizon) block SMS from unregistered numbers with error 30034 — even trial-account messages to verified phones.
+            You have to register a <strong>Sole Proprietor brand</strong> (~$4 one-time, approves in minutes via SMS code) +
+            a <strong>Low-Volume campaign</strong> (~$15 one-time + ~$2/mo, typically approves within an hour).
+            For Sole Proprietor, the whole registration is <strong>same-day end-to-end</strong>.
           </p>
           <p className="text-xs">
             The walkthrough covers every step, but if you want notifications working in the next 5 minutes, the right answer is almost always <strong>Telegram or ntfy instead</strong> (both 100% free, instant setup, no carrier filtering).
@@ -882,7 +884,7 @@ After submission the user signs into the dashboard, enters the same phone number
               <div>
                 <p className="font-medium text-neutral-800">Submit + pay ~$15 + $2/mo</p>
                 <p className="text-xs text-neutral-600 mt-1">
-                  Per-request $15 charge + $2/month ongoing. Sole Proprietor campaigns typically approve <strong>within an hour</strong> (sometimes immediately) — not the 1-2 days the older walkthroughs warned about. Check the campaign status in Trust Hub; once it reads <strong>Approved</strong>, move on.
+                  Per-request $15 charge + $2/month ongoing. Sole Proprietor campaigns typically approve <strong>within an hour</strong>, often immediately. Check the campaign status in Trust Hub; once it reads <strong>Approved</strong>, move on. If it gets rejected, see B6 — reviewers almost always reject because the opt-in description didn&apos;t include a public URL.
                 </p>
               </div>
             </li>

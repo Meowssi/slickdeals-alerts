@@ -111,10 +111,27 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
             onChange={(e) => setRssUrl(e.target.value)}
             placeholder="https://slickdeals.net/newsearch.php?..."
           />
-          <button type="button" className="btn-secondary mt-2 text-xs" onClick={handleTestFetch}>
-            Test fetch
-          </button>
+          <div className="flex flex-wrap gap-2 mt-2">
+            <button type="button" className="btn-secondary text-xs" onClick={handleTestFetch}>
+              Test fetch
+            </button>
+            {rssUrl.trim() && (
+              <a
+                href={slickdealsHtmlUrlFrom(rssUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary text-xs"
+              >
+                Modify on Slickdeals ↗
+              </a>
+            )}
+          </div>
           {testResult && <p className="text-xs mt-2">{testResult}</p>}
+          <p className="text-xs text-neutral-500 mt-2">
+            <strong>Modify on Slickdeals ↗</strong> opens the saved-search page (with the RSS flag stripped)
+            so you can tweak keywords, price, categories, etc. After changing the search, click the orange
+            RSS icon on Slickdeals to copy the new feed URL — then paste it above to replace the old one.
+          </p>
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
@@ -199,6 +216,16 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
       </div>
     </form>
   );
+}
+
+function slickdealsHtmlUrlFrom(rssUrl: string): string {
+  try {
+    const url = new URL(rssUrl);
+    url.searchParams.delete("rss");
+    return url.toString();
+  } catch {
+    return rssUrl;
+  }
 }
 
 function Field({

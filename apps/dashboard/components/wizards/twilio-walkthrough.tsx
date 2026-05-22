@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { CopyableUrl } from "@/components/footer";
+import { CopyableUrl, CopyableText } from "@/components/footer";
 
 type Step =
   | "intro"
@@ -765,39 +765,56 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B6</span>
               <div>
                 <p className="font-medium text-neutral-800">Recipient consent (Message flow)</p>
-                <p className="text-xs text-neutral-600 mt-1">Checkboxes for &quot;How do end-users opt in?&quot; — check <strong>Web Form</strong> (since you opt in by saving the channel in our dashboard&apos;s settings form).</p>
-                <p className="text-xs text-neutral-600 mt-1"><em>How do end-users consent to receive messages?</em> text box — paste:</p>
-                <code className="block mt-1 text-[10px] bg-neutral-100 p-2 rounded font-mono">
-                  {`The end-user opts in by entering their own phone number in the recipient field of the SMS channel form in the dashboard's settings, then confirming a 6-digit verification code sent to that number. This is a personal-use deployment — recipient is the same individual operating the dashboard.`}
-                </code>
+                <p className="text-xs text-neutral-600 mt-1">Checkboxes for &quot;How do end-users opt in?&quot; — check <strong>Web Form</strong>.</p>
+                <div className="mt-2 rounded-md bg-red-50 border border-red-200 p-2 text-[11px] text-red-900">
+                  <strong>⚠️ Don&apos;t skip the URL.</strong> Twilio rejects with error 30896 (&quot;rejected because of provided Opt-in information&quot;) if the description doesn&apos;t reference a publicly-accessible opt-in URL. Reviewers need to be able to visit it without logging in.
+                </div>
+                <p className="text-xs text-neutral-600 mt-2"><em>How do end-users consent to receive messages?</em> — paste this:</p>
+                <CopyableText template={`End-users opt in via the public web form at {ORIGIN}/sms-opt-in. The form requires the user to:
+(1) enter their mobile phone number
+(2) actively check a consent checkbox (NOT pre-checked) agreeing to receive automated SMS deal alerts about deals matching their saved Slickdeals searches
+(3) read the message frequency disclosure, standard rates disclaimer, HELP/STOP instructions, and links to the privacy policy and terms of service
+(4) click "Yes, sign me up!" to submit
+
+After submission the user signs into the dashboard, enters the same phone number into the SMS channel form, and receives a 6-digit verification code by SMS — they enter the code back into the dashboard to complete double opt-in. This is a personal-use deployment; the recipient is the same individual who registered.`} />
               </div>
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B6b</span>
               <div>
                 <p className="font-medium text-neutral-800">Opt-in keywords + opt-in message</p>
-                <p className="text-xs text-neutral-600 mt-1">
-                  Next screen is titled <em>Opt-in</em>. Two fields:
-                </p>
+                <p className="text-xs text-neutral-600 mt-1">Two fields on the &quot;Opt-in&quot; screen:</p>
                 <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-1">
                   <li>
-                    <strong>List all opt-in keywords:</strong> <em>leave blank.</em> Twilio falls back to its defaults
-                    (<code className="bg-neutral-100 px-1 rounded">START</code>,{" "}
+                    <strong>List all opt-in keywords:</strong> <em>leave blank</em> — Twilio defaults to
+                    {" "}<code className="bg-neutral-100 px-1 rounded">START</code>,{" "}
                     <code className="bg-neutral-100 px-1 rounded">YES</code>,{" "}
-                    <code className="bg-neutral-100 px-1 rounded">UNSTOP</code>). Text-keyword opt-in isn&apos;t our
-                    primary flow — users opt in through the dashboard form — but the defaults still work if anyone
-                    texts the keyword.
+                    <code className="bg-neutral-100 px-1 rounded">UNSTOP</code>.
                   </li>
                   <li>
-                    <strong>What is the opt-in message?</strong> Paste:
-                    <code className="block mt-1 text-[10px] bg-neutral-100 p-2 rounded font-mono">
-                      {`Slickdeals Alerts: You're now subscribed to deal alerts. Reply HELP for help, STOP to opt out. Msg & data rates may apply.`}
-                    </code>
-                    This is the auto-reply Twilio sends when someone texts <code className="bg-neutral-100 px-1 rounded">START</code>/<code className="bg-neutral-100 px-1 rounded">YES</code>.
-                    Includes brand name + HELP + STOP language carriers require.
+                    <strong>What is the opt-in message?</strong>
+                    <div className="mt-1">
+                      <CopyableText template={`Slickdeals Alerts: You're now subscribed to deal alerts about saved Slickdeals searches. Message frequency varies based on your alert settings. Reply HELP for help, STOP to opt out. Msg & data rates may apply.`} />
+                    </div>
                   </li>
                 </ul>
-                <p className="text-xs text-neutral-500 mt-2">Click <strong>Next</strong>.</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B6c</span>
+              <div>
+                <p className="font-medium text-neutral-800">Opt-out + HELP messages (next screens)</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Twilio also asks for opt-out and help responses. Leave the keyword fields blank (Twilio uses{" "}
+                  <code className="bg-neutral-100 px-1 rounded">STOP</code> / <code className="bg-neutral-100 px-1 rounded">HELP</code> defaults). Paste these messages:
+                </p>
+                <p className="text-xs text-neutral-600 mt-2"><em>What is the opt-out message?</em></p>
+                <CopyableText template={`Slickdeals Alerts: You have been unsubscribed. You will not receive any more messages from this number. Reply START to resubscribe.`} />
+                <p className="text-xs text-neutral-600 mt-2"><em>What is the help message?</em></p>
+                <CopyableText template={`Slickdeals Alerts: For help, sign into your dashboard at {ORIGIN} or open an issue at github.com/Meowssi/slickdeals-alerts/issues. Reply STOP to unsubscribe. Msg & data rates may apply.`} />
+                <p className="text-xs text-neutral-500 mt-2">
+                  Both messages MUST start with the brand name and the HELP one MUST point at a real help destination — Twilio reviewers reject &quot;Reply STOP to unsubscribe&quot; alone as not actually helpful.
+                </p>
               </div>
             </li>
             <li className="flex gap-3">

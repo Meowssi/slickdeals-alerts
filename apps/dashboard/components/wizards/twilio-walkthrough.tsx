@@ -773,6 +773,34 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
               </div>
             </li>
             <li className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B6b</span>
+              <div>
+                <p className="font-medium text-neutral-800">Opt-in keywords + opt-in message</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Next screen is titled <em>Opt-in</em>. Two fields:
+                </p>
+                <ul className="text-xs text-neutral-600 mt-1 ml-3 list-disc list-inside space-y-1">
+                  <li>
+                    <strong>List all opt-in keywords:</strong> <em>leave blank.</em> Twilio falls back to its defaults
+                    (<code className="bg-neutral-100 px-1 rounded">START</code>,{" "}
+                    <code className="bg-neutral-100 px-1 rounded">YES</code>,{" "}
+                    <code className="bg-neutral-100 px-1 rounded">UNSTOP</code>). Text-keyword opt-in isn&apos;t our
+                    primary flow — users opt in through the dashboard form — but the defaults still work if anyone
+                    texts the keyword.
+                  </li>
+                  <li>
+                    <strong>What is the opt-in message?</strong> Paste:
+                    <code className="block mt-1 text-[10px] bg-neutral-100 p-2 rounded font-mono">
+                      {`Slickdeals Alerts: You're now subscribed to deal alerts. Reply HELP for help, STOP to opt out. Msg & data rates may apply.`}
+                    </code>
+                    This is the auto-reply Twilio sends when someone texts <code className="bg-neutral-100 px-1 rounded">START</code>/<code className="bg-neutral-100 px-1 rounded">YES</code>.
+                    Includes brand name + HELP + STOP language carriers require.
+                  </li>
+                </ul>
+                <p className="text-xs text-neutral-500 mt-2">Click <strong>Next</strong>.</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B7</span>
               <div>
                 <p className="font-medium text-neutral-800">Message contents</p>

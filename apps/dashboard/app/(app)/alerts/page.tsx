@@ -4,6 +4,21 @@ import { humanAgo } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Convert a Slickdeals RSS URL into the equivalent HTML search URL by
+ * dropping the `rss=1` query param. Lets users tweak filters/keywords on
+ * slickdeals.net then paste the new RSS URL back into the alert.
+ */
+function slickdealsHtmlUrl(rssUrl: string): string {
+  try {
+    const url = new URL(rssUrl);
+    url.searchParams.delete("rss");
+    return url.toString();
+  } catch {
+    return rssUrl;
+  }
+}
+
 export default async function AlertsPage() {
   const supa = await supabaseServer();
   const { data: alerts } = await supa
@@ -26,36 +41,54 @@ export default async function AlertsPage() {
       ) : (
         <ul className="space-y-2">
           {alerts.map((a) => (
-            <li key={a.id}>
-              <Link href={`/alerts/${a.id}`} className="card p-4 hover:shadow-md transition block">
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium truncate">{a.name}</h3>
-                      {!a.enabled && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 text-neutral-600">
-                          paused
-                        </span>
-                      )}
-                      {a.consecutive_errors > 0 && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-red-50 text-red-700">
-                          {a.consecutive_errors} errors
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-neutral-500 mt-1 truncate">{a.rss_url}</div>
+            <li key={a.id} className="card p-4 hover:shadow-md transition">
+              <div className="flex items-start justify-between gap-3">
+                <Link href={`/alerts/${a.id}`} className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium truncate">{a.name}</h3>
+                    {!a.enabled && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 text-neutral-600">
+                        paused
+                      </span>
+                    )}
+                    {a.consecutive_errors > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-red-50 text-red-700">
+                        {a.consecutive_errors} errors
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-neutral-500 ml-4 shrink-0">
+                  <div className="text-xs text-neutral-500 mt-1 truncate">{a.rss_url}</div>
+                </Link>
+
+                <div className="shrink-0 flex flex-col items-end gap-2">
+                  <a
+                    href={slickdealsHtmlUrl(a.rss_url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs whitespace-nowrap text-blue-700 underline hover:text-blue-900"
+                  >
+                    Modify on Slickdeals ↗
+                  </a>
+                  <div className="text-xs text-neutral-500">
                     {a.last_polled_at ? `Polled ${humanAgo(a.last_polled_at)}` : "never polled"}
                   </div>
                 </div>
-                {a.last_error && (
-                  <p className="text-xs text-red-600 mt-2 truncate">⚠ {a.last_error}</p>
-                )}
-              </Link>
+              </div>
+
+              {a.last_error && (
+                <p className="text-xs text-red-600 mt-2 truncate">⚠ {a.last_error}</p>
+              )}
             </li>
           ))}
         </ul>
+      )}
+
+      {alerts && alerts.length > 0 && (
+        <p className="text-xs text-neutral-500 mt-4">
+          Click an alert to edit. <strong>Modify on Slickdeals ↗</strong> opens the saved-search page on
+          slickdeals.net so you can tweak filters/keywords; then click the orange RSS icon there to grab
+          the new feed URL and paste it back into the alert.
+        </p>
       )}
     </div>
   );

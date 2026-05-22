@@ -692,13 +692,24 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B1</span>
               <div>
                 <p className="font-medium text-neutral-800">Click <em>Create a Campaign</em></p>
+                <p className="text-xs text-neutral-600 mt-1">The brand should already be pre-filled to your approved one (e.g. <code className="bg-neutral-100 px-1 rounded">sdalerts</code>).</p>
               </div>
             </li>
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B2</span>
               <div>
-                <p className="font-medium text-neutral-800">Select your Brand</p>
-                <p className="text-xs text-neutral-600 mt-1">Pick the approved Sole Proprietor brand from Part A. Type defaults to <strong>Low-Volume Standard</strong> for Sole Proprietor brands.</p>
+                <p className="font-medium text-neutral-800">Pick a Messaging Service</p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Twilio asks: <em>&quot;Use an existing Messaging Service or create a new one?&quot;</em>
+                </p>
+                <p className="text-xs text-neutral-600 mt-1">
+                  <strong>Pick &quot;Create a new Messaging Service&quot;</strong> — cleaner than reusing a generic one Twilio auto-created.
+                  Name it something obvious like <code className="bg-neutral-100 px-1 rounded">Slickdeals Alerts</code>.
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">
+                  What&apos;s a Messaging Service? A Twilio container that holds your phone number(s) and the campaign together. We use one service per campaign.
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">Click <strong>Get started</strong> to advance.</p>
               </div>
             </li>
             <li className="flex gap-3">
@@ -746,9 +757,12 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
             <li className="flex gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center">B7</span>
               <div>
-                <p className="font-medium text-neutral-800">Attach your Twilio number to the Campaign</p>
+                <p className="font-medium text-neutral-800">After approval, attach your Twilio number to the Messaging Service</p>
                 <p className="text-xs text-neutral-600 mt-1">
-                  Once approved, you&apos;ll be prompted (or go to the campaign&apos;s Senders tab) to <strong>Add a Sender</strong>. Pick the phone number you bought in Step 4. Saves immediately. SMS deliveries unlock from that moment.
+                  Open the Messaging Service you created (<em>Slickdeals Alerts</em>) → <strong>Sender Pool</strong> → <strong>Add Senders</strong> → pick the phone number you bought in Step 4. Saves immediately.
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">
+                  SMS deliveries through Twilio start working the moment this attachment is saved. Come back to this wizard and hit <em>Send verification SMS now</em>.
                 </p>
               </div>
             </li>

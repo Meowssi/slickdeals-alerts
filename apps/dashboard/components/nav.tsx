@@ -9,13 +9,17 @@ const TABS = [
   { href: "/",         label: "Feed" },
   { href: "/alerts",   label: "Alerts" },
   { href: "/stats",    label: "Stats" },
+  { href: "/feedback", label: "Feedback" },
   { href: "/settings", label: "Settings" },
   { href: "/setup",    label: "Setup" },
 ];
 
-export function Nav({ email }: { email: string }) {
+export function Nav({ email, isAdmin = false }: { email: string; isAdmin?: boolean }) {
   const path = usePathname();
   const router = useRouter();
+  const tabs = isAdmin
+    ? [...TABS, { href: "/admin", label: "Admin" }]
+    : TABS;
 
   async function signOut() {
     const supa = supabaseBrowser();
@@ -32,7 +36,7 @@ export function Nav({ email }: { email: string }) {
             Slickdeals Alerts
           </Link>
           <nav className="flex gap-1">
-            {TABS.map((t) => {
+            {tabs.map((t) => {
               const active = t.href === "/" ? path === "/" : path.startsWith(t.href);
               return (
                 <Link

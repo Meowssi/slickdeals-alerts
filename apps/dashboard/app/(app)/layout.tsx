@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { Nav } from "@/components/nav";
+import { adminEmails } from "@/lib/admin-auth";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supa = await supabaseServer();
@@ -15,9 +16,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .single();
   if (!settings?.onboarded_at) redirect("/setup");
 
+  const isAdmin = adminEmails().includes((user.email ?? "").toLowerCase());
+
   return (
     <div className="min-h-screen flex flex-col">
-      <Nav email={user.email ?? ""} />
+      <Nav email={user.email ?? ""} isAdmin={isAdmin} />
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-6">{children}</main>
     </div>
   );

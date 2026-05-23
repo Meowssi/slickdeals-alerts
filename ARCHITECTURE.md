@@ -2,7 +2,7 @@
 
 For the full thing with diagrams, see [`docs/architecture.md`](docs/architecture.md).
 
-**Goal:** beat Slickdeals' built-in alert system (which can be 45min–6h late) by polling RSS feeds for arbitrary saved searches and pushing matches to whatever notification service the user prefers.
+**Goal:** a self-hosted companion to Slickdeals' saved-search RSS feeds — polls the feeds on whatever cadence you set and pushes matches to whatever notification service the user prefers (Telegram, SMS, ntfy, Discord, email, etc.).
 
 **Pieces:**
 

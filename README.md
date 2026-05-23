@@ -1,12 +1,14 @@
 # Slickdeals Alerts
 
-A faster, more reliable replacement for Slickdeals' built-in deal-alert system. Polls saved-search RSS feeds, deduplicates matches, and pushes notifications to **whichever services you (or your coworkers) prefer** — Telegram, SMS, ntfy.sh, Pushover, Discord, email, or generic webhooks.
+A self-hosted companion for your Slickdeals saved searches. Polls the public RSS feeds, deduplicates matches, and pushes notifications to **whichever services you (or your coworkers) prefer** — Telegram, SMS, ntfy.sh, Pushover, Discord, email, or generic webhooks.
+
+Use it alongside Slickdeals' built-in alerts (or on its own) if you'd rather get notifications in Telegram / ntfy / Discord / etc. than in email.
 
 ---
 
 ## 🚀 1-click deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FMeowssi%2Fslickdeals-alerts&root-directory=apps%2Fdashboard&project-name=slickdeals-alerts&repository-name=slickdeals-alerts&demo-title=Slickdeals%20Alerts&demo-description=Self-hosted%20deal%20alerts%20replacing%20Slickdeals'%20built-in%20notifications.&env=ADMIN_EMAILS&envDescription=Comma-separated%20list%20of%20emails%20allowed%20to%20use%20the%20%2Fadmin%2Fsetup%20wizard.&envLink=https%3A%2F%2Fgithub.com%2FMeowssi%2Fslickdeals-alerts%2Fblob%2Fmain%2Fdocs%2Fself-hosting.md&integration-ids=oac_VqOgBHqhEoFTPzGkPd7L0iH6)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FMeowssi%2Fslickdeals-alerts&root-directory=apps%2Fdashboard&project-name=slickdeals-alerts&repository-name=slickdeals-alerts&demo-title=Slickdeals%20Alerts&demo-description=Self-hosted%20companion%20for%20Slickdeals%20saved-search%20RSS%20feeds.&env=ADMIN_EMAILS&envDescription=Comma-separated%20list%20of%20emails%20allowed%20to%20use%20the%20%2Fadmin%2Fsetup%20wizard.&envLink=https%3A%2F%2Fgithub.com%2FMeowssi%2Fslickdeals-alerts%2Fblob%2Fmain%2Fdocs%2Fself-hosting.md&integration-ids=oac_VqOgBHqhEoFTPzGkPd7L0iH6)
 
 Click the button. Vercel will:
 1. Fork the repo into your GitHub.

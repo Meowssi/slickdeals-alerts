@@ -5,16 +5,16 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="mt-12 border-t border-neutral-200 bg-white">
-      <div className="mx-auto max-w-5xl px-4 py-6 text-xs text-neutral-500 flex flex-wrap items-center gap-4 justify-between">
+    <footer className="mt-12 border-t border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="mx-auto max-w-5xl px-4 py-6 text-xs text-neutral-500 dark:text-neutral-400 flex flex-wrap items-center gap-4 justify-between">
         <div className="flex gap-4">
           <FooterLink path="/privacy" label="Privacy Policy" />
           <FooterLink path="/terms"   label="Terms of Service" />
           <FooterLink path="/sms-opt-in" label="SMS opt-in" />
         </div>
-        <div className="text-neutral-400">
+        <div className="text-neutral-400 dark:text-neutral-500">
           self-hosted{" "}
-          <a className="underline hover:text-neutral-600" href="https://github.com/Meowssi/slickdeals-alerts" target="_blank" rel="noreferrer">
+          <a className="underline hover:text-neutral-600 dark:hover:text-neutral-300" href="https://github.com/Meowssi/slickdeals-alerts" target="_blank" rel="noreferrer">
             slickdeals-alerts
           </a>
         </div>
@@ -26,7 +26,7 @@ export function Footer() {
 function FooterLink({ path, label }: { path: string; label: string }) {
   return (
     <span className="flex items-center gap-1">
-      <Link href={path} className="hover:text-neutral-700 hover:underline">
+      <Link href={path} className="hover:text-neutral-700 dark:hover:text-neutral-200 hover:underline">
         {label}
       </Link>
       <CopyUrlButton path={path} ariaLabel={`Copy ${label} URL`} />
@@ -61,7 +61,7 @@ export function CopyUrlButton({ path, ariaLabel }: { path: string; ariaLabel: st
       onClick={copy}
       aria-label={ariaLabel}
       title={copied ? "Copied!" : "Copy URL"}
-      className="px-1 py-0.5 rounded text-[10px] border border-neutral-200 bg-white text-neutral-500 hover:bg-neutral-100"
+      className="px-1 py-0.5 rounded text-[10px] border border-neutral-200 bg-white text-neutral-500 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
     >
       {copied ? "✓" : "📋"}
     </button>

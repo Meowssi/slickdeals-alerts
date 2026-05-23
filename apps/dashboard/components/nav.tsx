@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const TABS = [
   { href: "/",         label: "Feed" },
@@ -24,10 +25,10 @@ export function Nav({ email }: { email: string }) {
   }
 
   return (
-    <header className="border-b border-neutral-200 bg-white">
+    <header className="border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
       <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="font-semibold text-brand-600">
+          <Link href="/" className="font-semibold text-brand-600 dark:text-brand-400">
             Slickdeals Alerts
           </Link>
           <nav className="flex gap-1">
@@ -40,8 +41,8 @@ export function Nav({ email }: { email: string }) {
                   className={
                     "px-3 py-1.5 rounded-md text-sm " +
                     (active
-                      ? "bg-brand-50 text-brand-700"
-                      : "text-neutral-600 hover:bg-neutral-100")
+                      ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400"
+                      : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800")
                   }
                 >
                   {t.label}
@@ -50,9 +51,10 @@ export function Nav({ email }: { email: string }) {
             })}
           </nav>
         </div>
-        <div className="flex items-center gap-3 text-sm text-neutral-600">
+        <div className="flex items-center gap-3 text-sm text-neutral-600 dark:text-neutral-400">
+          <ThemeToggle />
           <span className="hidden sm:inline">{email}</span>
-          <button onClick={signOut} className="text-neutral-500 hover:text-neutral-900">
+          <button onClick={signOut} className="text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100">
             Sign out
           </button>
         </div>

@@ -20,10 +20,10 @@ export interface Check {
 }
 
 const DOCS_BASE = "https://github.com/Meowssi/slickdeals-alerts/blob/main/docs/self-hosting.md";
-const EXPECTED_FUNCTIONS = ["notifier", "telegram-webhook", "channel-verify", "send-test", "poll"];
+const EXPECTED_FUNCTIONS = ["notifier", "telegram-webhook", "channel-verify", "send-test", "poll", "refresh-scores"];
 const EXPECTED_VAULT_SECRETS = ["notifier_url", "service_role_key"];
 // Bump when adding a new migration in supabase/migrations/.
-const EXPECTED_MIGRATIONS = 15;
+const EXPECTED_MIGRATIONS = 16;
 
 const MANAGEMENT_API = "https://api.supabase.com";
 
@@ -153,7 +153,7 @@ async function checkFunctions(
         id: "functions",
         label: "Edge functions",
         status: "pass",
-        message: `All 4 functions ACTIVE: ${EXPECTED_FUNCTIONS.join(", ")}.`,
+        message: `All ${EXPECTED_FUNCTIONS.length} functions ACTIVE: ${EXPECTED_FUNCTIONS.join(", ")}.`,
       };
     }
     return {

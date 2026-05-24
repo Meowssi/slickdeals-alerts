@@ -155,9 +155,9 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter }: Props) 
 
   return (
     <div>
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <header className="mb-4 space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
         <h1 className="text-2xl font-semibold">Feed</h1>
-        <div className="flex gap-1 text-sm">
+        <div className="flex gap-1 text-sm overflow-x-auto -mx-1 px-1">
           <FilterTab label="All"       href={buildHref({ filter: null })}      active={!filter} />
           <FilterTab label="Unread"    href={buildHref({ filter: "unread" })}    active={filter === "unread"} />
           <FilterTab label="Saved"     href={buildHref({ filter: "saved" })}     active={filter === "saved"} />
@@ -236,7 +236,7 @@ function FeedItem({ row, isNew, onClick }: { row: FeedRow; isNew: boolean; onCli
     <Link href={`/deal/${row.deal_id}`} onClick={onClick} className="block">
       <article
         className={
-          "card p-4 flex gap-4 hover:shadow-md transition " +
+          "card p-3 sm:p-4 flex gap-3 sm:gap-4 hover:shadow-md transition " +
           (unread ? "border-l-4 border-l-brand-500 " : "") +
           (isNew ? "feed-row-new" : "")
         }
@@ -246,27 +246,27 @@ function FeedItem({ row, isNew, onClick }: { row: FeedRow; isNew: boolean; onCli
           <img
             src={row.thumbnail_url}
             alt=""
-            className="w-[72px] h-[72px] sm:w-24 sm:h-24 shrink-0 object-contain rounded bg-neutral-100"
+            className="w-16 h-16 sm:w-24 sm:h-24 shrink-0 object-contain rounded bg-neutral-100 dark:bg-neutral-800"
           />
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             {row.price != null && (
-              <span className="text-lg font-semibold text-brand-600">
+              <span className="text-base sm:text-lg font-semibold text-brand-600 dark:text-brand-400">
                 {formatPrice(row.price)}
               </span>
             )}
-            {row.store && <span className="text-sm text-neutral-500">@ {row.store}</span>}
-            {row.saved && <span className="ml-auto text-xs text-amber-600">★ saved</span>}
-            {isNew && <span className="ml-auto text-xs font-semibold text-yellow-700">NEW</span>}
+            {row.store && <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 truncate">@ {row.store}</span>}
+            {row.saved && <span className="ml-auto text-xs text-amber-600 dark:text-amber-400">★ saved</span>}
+            {isNew && <span className="ml-auto text-xs font-semibold text-yellow-700 dark:text-yellow-400">NEW</span>}
           </div>
-          <h3 className="font-medium truncate">{row.title}</h3>
-          <div className="text-xs text-neutral-500 mt-1 flex gap-3">
-            <span>{row.alert_name}</span>
-            <span>•</span>
-            <span>Posted {humanAgo(row.rss_pub_at)}</span>
-            <span>•</span>
-            <span>Matched {humanAgo(row.matched_at)}</span>
+          <h3 className="font-medium text-sm sm:text-base line-clamp-2 sm:truncate leading-snug mt-0.5">{row.title}</h3>
+          <div className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1 truncate">
+            <span className="truncate">{row.alert_name}</span>
+            <span className="mx-1.5">·</span>
+            <span>{humanAgo(row.rss_pub_at)}</span>
+            <span className="hidden sm:inline mx-1.5">·</span>
+            <span className="hidden sm:inline">matched {humanAgo(row.matched_at)}</span>
           </div>
         </div>
       </article>

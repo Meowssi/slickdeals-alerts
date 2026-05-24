@@ -7,10 +7,17 @@ export interface DealItem {
   title: string;
   url: string;
   price: number | null;
+  /** Best-effort regex extraction from the title (kept for back-compat). */
   store: string | null;
   thumbnailUrl: string | null;
   /** From <pubDate>. Null if the feed didn't include one. */
   pubAt: Date | null;
+  /** Community "Thumb Score" from content:encoded. Positive or negative int. */
+  thumbScore: number | null;
+  /** Merchant slug from data-store-slug (e.g. "amazon", "clearance-chair"). */
+  merchant: string | null;
+  /** Merchant domain from data-product-exitWebsite (e.g. "amazon.com"). */
+  merchantDomain: string | null;
   /** Full raw item, for forensics. */
   raw: Record<string, unknown>;
 }
@@ -75,6 +82,9 @@ export interface DealRow {
   store: string | null;
   thumbnail_url: string | null;
   rss_pub_at: string | null;
+  thumb_score: number | null;
+  merchant: string | null;
+  merchant_domain: string | null;
   first_seen_at: string;
   raw: Record<string, unknown>;
   created_at: string;

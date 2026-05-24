@@ -139,14 +139,26 @@ function buildBody(
     title: string;
     price: number | null;
     store: string | null;
+    merchant: string | null;
+    merchant_domain: string | null;
+    thumb_score: number | null;
     rss_pub_at: string | null;
   },
 ): string {
   // Body is everything BUT the title (the title is shown separately above by
-  // each provider). Keep it tight: price line + footer with alert + posted-ago.
+  // each provider). Keep it tight: price + merchant line, optional score line,
+  // footer with alert + posted-ago.
   const parts: string[] = [];
-  const priceLine = formatPriceLine(deal.price, deal.store);
+
+  const merchant = resolveMerchantLabel(deal);
+  const priceLine = formatPriceLine(deal.price, merchant);
   if (priceLine) parts.push(priceLine);
+
+  if (deal.thumb_score != null) {
+    const sign = deal.thumb_score >= 0 ? "+" : "";
+    parts.push(`👍 ${sign}${deal.thumb_score} community score`);
+  }
+
   const footer = [
     alertName,
     deal.rss_pub_at ? humanAgo(new Date(deal.rss_pub_at)) : null,
@@ -155,12 +167,26 @@ function buildBody(
   return parts.join("\n");
 }
 
-function formatPriceLine(price: number | null, store: string | null): string {
-  if (price == null && !store) return "";
+function resolveMerchantLabel(d: { store: string | null; merchant: string | null; merchant_domain: string | null }): string | null {
+  // Prefer the most user-recognizable form. Domain > unslugged slug > title-mined store.
+  if (d.merchant_domain) return d.merchant_domain;
+  if (d.merchant) return unslug(d.merchant);
+  return d.store;
+}
+
+function unslug(s: string): string {
+  return s
+    .split("-")
+    .map((w) => (w.length === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(" ");
+}
+
+function formatPriceLine(price: number | null, merchant: string | null): string {
+  if (price == null && !merchant) return "";
   const p = price != null ? `$${price.toFixed(2)}` : "";
-  if (!store) return p;
-  if (!p)     return `at ${store}`;
-  return `${p} at ${store}`;
+  if (!merchant) return p;
+  if (!p)        return `at ${merchant}`;
+  return `${p} at ${merchant}`;
 }
 
 function truncate(s: string, n: number): string {

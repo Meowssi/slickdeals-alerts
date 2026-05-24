@@ -32,6 +32,8 @@ interface AlertRow {
   consecutive_errors: number;
 }
 
+// Mirror of packages/shared/src/types.ts DealItem — duplicated here because
+// Deno edge functions can't import the workspace package.
 interface DealItem {
   slickdealsId: string;
   title: string;
@@ -40,6 +42,9 @@ interface DealItem {
   store: string | null;
   thumbnailUrl: string | null;
   pubAt: Date | null;
+  thumbScore: number | null;
+  merchant: string | null;
+  merchantDomain: string | null;
   raw: Record<string, unknown>;
 }
 
@@ -196,11 +201,12 @@ function rssItemToDeal(item: any): DealItem | null {
   const slickdealsId = (typeof guid === "string" && guid.trim()) || link;
 
   const pubAt = item.pubDate ? new Date(item.pubDate) : null;
+  const html = typeof item["content:encoded"] === "string" ? item["content:encoded"] : "";
   const thumbnailUrl =
     item["media:thumbnail"]?.["@_url"] ??
     item["media:content"]?.["@_url"] ??
     item.enclosure?.["@_url"] ??
-    extractImgFromHtml(item["content:encoded"]) ??
+    extractImgFromHtml(html) ??
     extractImgFromHtml(item.description) ??
     null;
 
@@ -212,6 +218,9 @@ function rssItemToDeal(item: any): DealItem | null {
     store: extractStore(title),
     thumbnailUrl,
     pubAt: pubAt && !Number.isNaN(pubAt.getTime()) ? pubAt : null,
+    thumbScore: extractThumbScore(html),
+    merchant: extractMerchantSlug(html),
+    merchantDomain: extractMerchantDomain(html),
     raw: item as Record<string, unknown>,
   };
 }
@@ -219,6 +228,26 @@ function rssItemToDeal(item: any): DealItem | null {
 function extractImgFromHtml(html: unknown): string | null {
   if (typeof html !== "string" || !html) return null;
   const m = html.match(/<img[^>]+src=["']([^"'>]+)["']/i);
+  return m ? m[1]! : null;
+}
+
+function extractThumbScore(html: string): number | null {
+  if (!html) return null;
+  const m = html.match(/Thumb\s*Score\s*:\s*([+-]?\d+)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+function extractMerchantSlug(html: string): string | null {
+  if (!html) return null;
+  const m = html.match(/data-store-slug=["']([^"']+)["']/i);
+  return m ? m[1]! : null;
+}
+
+function extractMerchantDomain(html: string): string | null {
+  if (!html) return null;
+  const m = html.match(/data-product-exitWebsite=["']([^"']+)["']/i);
   return m ? m[1]! : null;
 }
 
@@ -267,6 +296,9 @@ async function upsertDeal(supa: SupabaseClient, item: DealItem): Promise<number 
         price: item.price,
         store: item.store,
         thumbnail_url: item.thumbnailUrl,
+        thumb_score: item.thumbScore,
+        merchant: item.merchant,
+        merchant_domain: item.merchantDomain,
         rss_pub_at: item.pubAt?.toISOString() ?? null,
         raw: item.raw,
       },

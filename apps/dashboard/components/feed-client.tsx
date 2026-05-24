@@ -15,6 +15,9 @@ export interface FeedRow {
   url: string;
   price: number | null;
   store: string | null;
+  merchant: string | null;
+  merchant_domain: string | null;
+  thumb_score: number | null;
   thumbnail_url: string | null;
   rss_pub_at: string | null;
   saved: boolean;
@@ -81,7 +84,7 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter }: Props) 
             .select(`
               id, matched_at, alert_id, deal_id,
               alerts!inner(id, name),
-              deals!inner(id, title, url, price, store, thumbnail_url, rss_pub_at)
+              deals!inner(id, title, url, price, store, merchant, merchant_domain, thumb_score, thumbnail_url, rss_pub_at)
             `)
             .eq("id", inserted.id)
             .single();
@@ -105,6 +108,9 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter }: Props) 
             url: r.deals.url,
             price: r.deals.price,
             store: r.deals.store,
+            merchant: r.deals.merchant ?? null,
+            merchant_domain: r.deals.merchant_domain ?? null,
+            thumb_score: r.deals.thumb_score ?? null,
             thumbnail_url: r.deals.thumbnail_url,
             rss_pub_at: r.deals.rss_pub_at,
             saved: state?.saved ?? false,
@@ -230,6 +236,17 @@ function AlertChip({ label, href, active }: { label: string; href: string; activ
   );
 }
 
+function merchantLabel(row: FeedRow): string | null {
+  if (row.merchant_domain) return row.merchant_domain;
+  if (row.merchant) {
+    return row.merchant
+      .split("-")
+      .map((w) => (w.length === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+      .join(" ");
+  }
+  return row.store;
+}
+
 function FeedItem({ row, isNew, onClick }: { row: FeedRow; isNew: boolean; onClick: () => void }) {
   const unread = !row.read_at;
   return (
@@ -256,7 +273,24 @@ function FeedItem({ row, isNew, onClick }: { row: FeedRow; isNew: boolean; onCli
                 {formatPrice(row.price)}
               </span>
             )}
-            {row.store && <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 truncate">@ {row.store}</span>}
+            {merchantLabel(row) && (
+              <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 truncate">
+                @ {merchantLabel(row)}
+              </span>
+            )}
+            {row.thumb_score != null && (
+              <span
+                className={
+                  "text-[11px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap " +
+                  (row.thumb_score >= 0
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                    : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200")
+                }
+                title="Slickdeals community thumb score"
+              >
+                {row.thumb_score >= 0 ? `👍 +${row.thumb_score}` : `👎 ${row.thumb_score}`}
+              </span>
+            )}
             {row.saved && <span className="ml-auto text-xs text-amber-600 dark:text-amber-400">★ saved</span>}
             {isNew && <span className="ml-auto text-xs font-semibold text-yellow-700 dark:text-yellow-400">NEW</span>}
           </div>

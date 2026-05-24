@@ -2,56 +2,42 @@
 
 import { useEffect, useState } from "react";
 
-type Theme = "light" | "dark" | "system";
+type Theme = "light" | "dark";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("system");
+  const [theme, setTheme] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const stored = (localStorage.getItem("theme") as Theme | null);
-    setTheme(stored ?? "system");
+    const stored = localStorage.getItem("theme") as Theme | null;
+    if (stored === "light" || stored === "dark") {
+      setTheme(stored);
+    } else {
+      // First visit: seed from current document class (set by the early-paint
+      // script in layout.tsx based on prefers-color-scheme).
+      setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    }
   }, []);
 
-  function applyTheme(next: Theme) {
+  function toggle() {
+    const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    if (next === "system") {
-      localStorage.removeItem("theme");
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      document.documentElement.classList.toggle("dark", prefersDark);
-    } else {
-      localStorage.setItem("theme", next);
-      document.documentElement.classList.toggle("dark", next === "dark");
-    }
+    localStorage.setItem("theme", next);
+    document.documentElement.classList.toggle("dark", next === "dark");
   }
 
-  // Render a static placeholder until hydration so the SSR'd output stays
-  // consistent with the early-paint script (no mismatch).
   if (!mounted) {
     return <div className="w-7 h-7" aria-hidden />;
   }
 
-  function cycle() {
-    if (theme === "light") applyTheme("dark");
-    else if (theme === "dark") applyTheme("system");
-    else applyTheme("light");
-  }
-
-  const label =
-    theme === "light" ? "Light · click for dark"
-    : theme === "dark"  ? "Dark · click for system"
-    : "System · click for light";
-
-  const icon =
-    theme === "light" ? "☀️"
-    : theme === "dark"  ? "🌙"
-    : "🖥️";
+  const label = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  const icon  = theme === "dark" ? "☀️" : "🌙";
 
   return (
     <button
       type="button"
-      onClick={cycle}
+      onClick={toggle}
       title={label}
       aria-label={label}
       className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-300"

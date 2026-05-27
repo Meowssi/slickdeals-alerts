@@ -30,8 +30,12 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic =
     path === "/login" ||
+    // Public Twilio A2P 10DLC compliance pages. These MUST stay reachable
+    // without auth — the opt-in page is the campaign's Call-to-Action, and
+    // if a reviewer gets bounced to /login the campaign is rejected (30909).
     path === "/privacy" ||
     path === "/terms" ||
+    path === "/sms-opt-in" ||
     path.startsWith("/auth/") ||
     path.startsWith("/_next") ||
     path.startsWith("/favicon");

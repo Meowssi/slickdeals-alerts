@@ -32,7 +32,9 @@ Your bot has a `chat_id` you haven't connected to your account. Re-run onboardin
 
 Checklist, most-likely cause first:
 
-1. **Open `https://<your-domain>/sms-opt-in` in a logged-out (incognito) browser.** It must render the consent form: a phone field, an *unchecked* consent checkbox, the frequency / "msg & data rates" / HELP / STOP disclosures, and links to Terms + Privacy. A blank page here is the #1 cause of 30909. (This page is a plain Server Component — never add `onSubmit`/`onChange` handlers to it; doing so crashes the render into a blank shell that still returns HTTP 200 with no form.)
+1. **Open `https://<your-domain>/sms-opt-in` in a logged-out (incognito) browser** — this is the #1 cause. It must show the consent form (phone field, an *unchecked* consent checkbox, the frequency / "msg & data rates" / HELP / STOP disclosures, and Terms + Privacy links). Two ways it commonly fails:
+   - **It redirects you to `/login`** → the route isn't on the auth allowlist. Add `path === "/sms-opt-in"` to `isPublic` in `apps/dashboard/lib/supabase/middleware.ts` (next to `/privacy` and `/terms`).
+   - **It loads blank (HTTP 200, no form)** → the page is a Server Component and an event handler (`onSubmit`/`onChange`) was added to it, which crashes the render. Keep it 100% static markup.
 2. Confirm `https://<your-domain>/privacy` loads and states **mobile numbers are never shared or sold to third parties** — carriers require this assurance.
 3. Confirm `https://<your-domain>/terms` loads.
 4. In the consent box, describe the flow **and paste the opt-in URL** so the reviewer can reach it. Copy-paste text is in [SMS via Twilio → A2P 10DLC](self-hosting.md#a2p-10dlc-campaign-registration-required-for-us-numbers).

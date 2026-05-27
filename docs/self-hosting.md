@@ -248,7 +248,7 @@ In Supabase function secrets:
 
 US carriers require every app-to-person SMS sender to register a **brand** and a **campaign** (A2P 10DLC) through Twilio. Until the campaign is **approved**, texts to US numbers are filtered or blocked. For a personal deployment, register a **Sole Proprietor** brand — no EIN or business entity needed, lowest cost, and it fits the "alerts to my own phone" use case.
 
-> ⚠️ **Before you submit, open `https://<your-domain>/sms-opt-in` in a logged-out (incognito) browser** and confirm the consent form actually renders. That URL is your **Call-to-Action (CTA)** — the reviewer visits it to verify how people opt in. A blank or erroring page is rejected with **Error 30909 (CTA could not be verified)**, the single most common A2P rejection. This dashboard ships `/sms-opt-in`, `/privacy`, and `/terms` for exactly this purpose; just confirm all three load on *your* domain first.
+> ⚠️ **Before you submit, open `https://<your-domain>/sms-opt-in` in a logged-out (incognito) browser** and confirm it loads the consent form **without bouncing you to a login page**. That URL is your **Call-to-Action (CTA)** — the reviewer visits it to verify how people opt in. A blank or erroring page is rejected with **Error 30909 (CTA could not be verified)**, the single most common A2P rejection. This dashboard ships `/sms-opt-in`, `/privacy`, and `/terms` for exactly this purpose and keeps all three on the auth middleware's public allowlist (`lib/supabase/middleware.ts`) so they load without signing in — confirm all three open while logged out on *your* domain first.
 
 Twilio Console → **Messaging → Regulatory Compliance → A2P 10DLC** (older accounts: **Messaging → Compliance**). Suggested field values:
 

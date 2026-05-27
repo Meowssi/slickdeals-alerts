@@ -24,7 +24,19 @@ Your bot has a `chat_id` you haven't connected to your account. Re-run onboardin
 
 - Phone number must be **E.164** format (`+15551234567` — leading `+` and country code).
 - Check Twilio console → Logs to see if the message was sent at all.
-- Some carriers block A2P SMS without prior registration. Pick a different channel.
+- Some carriers block A2P SMS without prior registration. See **[A2P 10DLC campaign registration](self-hosting.md#a2p-10dlc-campaign-registration-required-for-us-numbers)** in the self-hosting guide.
+
+## "Twilio rejected my A2P campaign — Error 30909 (CTA could not be verified)"
+
+"CTA" = **Call-to-Action**, i.e. your opt-in flow. There's no field literally labeled "CTA" in the form — it maps to the **"How do end-users consent to receive messages?"** box plus the **opt-in URL** referenced there. 30909 means the reviewer opened that URL and couldn't confirm a working consent flow.
+
+Checklist, most-likely cause first:
+
+1. **Open `https://<your-domain>/sms-opt-in` in a logged-out (incognito) browser.** It must render the consent form: a phone field, an *unchecked* consent checkbox, the frequency / "msg & data rates" / HELP / STOP disclosures, and links to Terms + Privacy. A blank page here is the #1 cause of 30909. (This page is a plain Server Component — never add `onSubmit`/`onChange` handlers to it; doing so crashes the render into a blank shell that still returns HTTP 200 with no form.)
+2. Confirm `https://<your-domain>/privacy` loads and states **mobile numbers are never shared or sold to third parties** — carriers require this assurance.
+3. Confirm `https://<your-domain>/terms` loads.
+4. In the consent box, describe the flow **and paste the opt-in URL** so the reviewer can reach it. Copy-paste text is in [SMS via Twilio → A2P 10DLC](self-hosting.md#a2p-10dlc-campaign-registration-required-for-us-numbers).
+5. Tick the confirmation checkbox and resubmit. You do **not** need to change any dropdown or selection once the opt-in page renders correctly.
 
 ## "Notifications are X minutes late"
 

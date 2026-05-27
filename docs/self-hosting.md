@@ -244,6 +244,35 @@ In Supabase function secrets:
 | `TWILIO_AUTH_TOKEN` | from Twilio |
 | `TWILIO_FROM_NUMBER` | `+15551234567` |
 
+#### A2P 10DLC campaign registration (required for US numbers)
+
+US carriers require every app-to-person SMS sender to register a **brand** and a **campaign** (A2P 10DLC) through Twilio. Until the campaign is **approved**, texts to US numbers are filtered or blocked. For a personal deployment, register a **Sole Proprietor** brand — no EIN or business entity needed, lowest cost, and it fits the "alerts to my own phone" use case.
+
+> ⚠️ **Before you submit, open `https://<your-domain>/sms-opt-in` in a logged-out (incognito) browser** and confirm the consent form actually renders. That URL is your **Call-to-Action (CTA)** — the reviewer visits it to verify how people opt in. A blank or erroring page is rejected with **Error 30909 (CTA could not be verified)**, the single most common A2P rejection. This dashboard ships `/sms-opt-in`, `/privacy`, and `/terms` for exactly this purpose; just confirm all three load on *your* domain first.
+
+Twilio Console → **Messaging → Regulatory Compliance → A2P 10DLC** (older accounts: **Messaging → Compliance**). Suggested field values:
+
+| Field | What to enter |
+|---|---|
+| Campaign description | `Personal Slickdeals deal alerts sent to my own phone via a self-hosted dashboard.` |
+| Sample message 1 | `[Slickdeals Alerts] $9.99 – 50ft Cat6 Cable @ Best Buy. slickdeals.net/f/12345` |
+| Sample message 2 | `[Slickdeals Alerts] $42 – Anker 65W USB-C @ Amazon. slickdeals.net/f/67890` |
+| Message contents | Check **Embedded links** (messages carry `slickdeals.net` links). Leave *phone numbers*, *age-gated*, and *direct lending* unchecked. |
+| Privacy policy URL | `https://<your-domain>/privacy` |
+| Terms of service URL | `https://<your-domain>/terms` |
+| Opt-in keywords | *Leave blank* — consent is collected on the web form, not via a keyword. |
+| Opt-in / confirmation message | `Slickdeals Alerts: You're now subscribed to deal alerts. Reply HELP for help, STOP to opt out. Msg & data rates may apply.` |
+| Opt-out keywords | `STOP,STOPALL,UNSUBSCRIBE,CANCEL,END,QUIT,OPTOUT,REVOKE` |
+| Opt-out message | `You have been unsubscribed and will receive no further messages. Reply START to resubscribe.` |
+| Help keywords | `HELP,INFO` |
+| Help message | `Slickdeals Alerts: deal notifications for your saved searches. Reply STOP to unsubscribe. Msg & data rates may apply.` |
+
+**The field that gets flagged (the "CTA"):** there is no field literally labeled "CTA." It maps to the **"How do end-users consent to receive messages?"** box. Paste a description that *names the opt-in URL* so the reviewer can reach it:
+
+> End users opt in on the public web form at https://<your-domain>/sms-opt-in. The form requires the user to (1) enter their own mobile number and (2) actively check an unchecked consent checkbox agreeing to receive automated SMS deal alerts about deals matching their saved Slickdeals searches. The page discloses that message frequency varies, that message & data rates may apply, how to reply HELP or STOP, and links to the Terms of Service and Privacy Policy. This is a single-operator, personal-use deployment — the only recipient is the person who deployed and operates the instance. Numbers are never purchased, shared, or sold.
+
+A Sole Proprietor campaign is capped at a low daily message volume (plenty for personal alerts). After approval, point your Twilio number (or Messaging Service) at this campaign so outbound texts send under it.
+
 ### Pushover
 
 Premium push, $5 one-time per device.

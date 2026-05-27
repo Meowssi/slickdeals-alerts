@@ -14,6 +14,12 @@ export const dynamic = "force-dynamic";
  * is a static mirror of that form's UI for compliance reference — it
  * does not actually submit anywhere; the "Yes, sign me up!" button
  * routes to /login so a new user can register and reach the real form.
+ *
+ * ⚠️  SERVER COMPONENT — do NOT add event handlers (onSubmit/onChange/…)
+ * to any element here. Passing a function to a host element in an RSC
+ * throws at render time; the page then streams as a blank shell (HTTP
+ * 200 with no form), and Twilio rejects the campaign for an unverifiable
+ * Call-to-Action (Error 30909). Keep this page 100% static markup.
  */
 export default async function SmsOptInPage() {
   const h = await headers();
@@ -30,7 +36,7 @@ export default async function SmsOptInPage() {
           </p>
         </header>
 
-        <form className="card p-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
+        <div className="card p-6 space-y-4">
           <h2 className="font-semibold">Slickdeals Alerts SMS subscription</h2>
 
           <div>
@@ -43,12 +49,11 @@ export default async function SmsOptInPage() {
               inputMode="tel"
               placeholder="(555) 123-4567"
               className="input"
-              disabled
             />
           </div>
 
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-1" disabled />
+            <input type="checkbox" className="mt-1" />
             <span>
               Yes, I&apos;d like to receive automated SMS deal alerts from Slickdeals Alerts when the saved Slickdeals
               searches I configure on my dashboard match new deals. I understand frequency varies based on my own
@@ -90,7 +95,7 @@ export default async function SmsOptInPage() {
             Clicking the button takes you to sign-in. After signing in you&apos;ll complete this same form (with verification)
             from the dashboard&apos;s setup wizard.
           </p>
-        </form>
+        </div>
 
         <details className="text-xs text-neutral-500">
           <summary className="cursor-pointer">For Twilio reviewers</summary>

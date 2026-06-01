@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { humanAgo, formatPrice } from "@/lib/format";
 
@@ -32,13 +33,17 @@ interface Props {
   alerts: AlertOption[];
   filter: string | null;
   alertFilter: string | null;
+  searchQuery: string | null;
 }
 
 const HIGHLIGHT_MS = 30_000;
 
-export function FeedClient({ initialRows, alerts, filter, alertFilter }: Props) {
+export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQuery }: Props) {
+  const router = useRouter();
   const [rows, setRows] = useState<FeedRow[]>(initialRows);
   const [highlights, setHighlights] = useState<Set<number>>(new Set());
+  const [inputVal, setInputVal] = useState(searchQuery ?? "");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset state when filter/alertFilter changes (server re-renders with new initialRows).
   const initialRef = useRef(initialRows);
@@ -49,6 +54,11 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter }: Props) 
       setHighlights(new Set());
     }
   }, [initialRows]);
+
+  // Sync input when browser back/forward changes the URL's q param.
+  useEffect(() => {
+    setInputVal(searchQuery ?? "");
+  }, [searchQuery]);
 
   const dropHighlight = useCallback((matchId: number) => {
     setHighlights((prev) => {
@@ -140,23 +150,47 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter }: Props) 
     };
   }, [alertFilter, dropHighlight]);
 
-  // Apply tab filters (saved / unread / dismissed) to the live list.
+  // Apply tab filters (saved / unread / dismissed) then search query.
+  const needle = searchQuery?.trim().toLowerCase() ?? "";
   const visibleRows = rows.filter((r) => {
-    if (filter === "dismissed") return r.dismissed;
-    if (r.dismissed) return false;
-    if (filter === "saved") return r.saved;
-    if (filter === "unread") return r.read_at === null;
-    return true;
+    if (filter === "dismissed") { if (!r.dismissed) return false; }
+    else {
+      if (r.dismissed) return false;
+      if (filter === "saved" && !r.saved) return false;
+      if (filter === "unread" && r.read_at !== null) return false;
+    }
+    if (!needle) return true;
+    return (
+      r.title.toLowerCase().includes(needle) ||
+      (r.store ?? "").toLowerCase().includes(needle) ||
+      (r.merchant ?? "").toLowerCase().includes(needle) ||
+      (r.merchant_domain ?? "").toLowerCase().includes(needle)
+    );
   });
 
-  const buildHref = (next: { filter?: string | null; alert?: string | null }): string => {
+  const buildHref = (next: { filter?: string | null; alert?: string | null; q?: string | null }): string => {
     const sp = new URLSearchParams();
     const f = next.filter !== undefined ? next.filter : filter;
     const a = next.alert  !== undefined ? next.alert  : alertFilter;
+    const q = next.q !== undefined ? next.q : (searchQuery ?? null);
     if (f) sp.set("filter", f);
     if (a) sp.set("alert", a);
+    if (q) sp.set("q", q);
     const qs = sp.toString();
     return qs ? `/?${qs}` : "/";
+  };
+
+  const handleSearchChange = (val: string) => {
+    setInputVal(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const sp = new URLSearchParams();
+      if (filter) sp.set("filter", filter);
+      if (alertFilter) sp.set("alert", alertFilter);
+      if (val.trim()) sp.set("q", val.trim());
+      const qs = sp.toString();
+      router.replace(qs ? `/?${qs}` : "/");
+    }, 300);
   };
 
   return (
@@ -180,11 +214,28 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter }: Props) 
         </div>
       )}
 
+      <div className="mb-4 relative">
+        <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-400">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+        </span>
+        <input
+          type="search"
+          value={inputVal}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder="Search deals…"
+          className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 pl-9 pr-4 py-2 text-sm placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+      </div>
+
       {visibleRows.length === 0 ? (
         <div className="card p-8 text-center text-neutral-500">
-          <p className="mb-2">No matches yet.</p>
+          <p className="mb-2">{needle ? `No deals match "${needle}".` : "No matches yet."}</p>
           <p className="text-sm">
-            {alertFilter
+            {needle
+              ? "Try a different search term."
+              : alertFilter
               ? "Nothing for this alert yet — try removing the alert filter."
               : "Once your alerts find a deal, it'll show up here in real time."}
           </p>

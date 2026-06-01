@@ -10,10 +10,10 @@ export const dynamic = "force-dynamic";
 export default async function FeedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; alert?: string }>;
+  searchParams: Promise<{ filter?: string; alert?: string; q?: string }>;
 }) {
   const supa = await supabaseServer();
-  const { filter, alert: alertFilter } = await searchParams;
+  const { filter, alert: alertFilter, q: searchQuery } = await searchParams;
 
   // alert_matches has FKs to alerts + deals, but NOT to deal_state, so fetch
   // matches/deal_state separately and merge in JS.
@@ -81,6 +81,7 @@ export default async function FeedPage({
       alerts={allAlerts ?? []}
       filter={filter ?? null}
       alertFilter={alertFilter ?? null}
+      searchQuery={searchQuery ?? null}
     />
   );
 }

@@ -218,9 +218,9 @@ export function TwilioWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
           <p className="font-semibold">💵 You pay Twilio (not us)</p>
           <ul className="list-disc list-inside text-xs space-y-0.5">
             <li>$20 prefund upfront (becomes SMS credit, not a fee)</li>
-            <li>$4 one-time + $2/month for A2P 10DLC registration</li>
+            <li>$4 one-time brand + $15 one-time campaign + $2/month A2P fees</li>
             <li>~1¢ per SMS, ~$1.15/month per phone number</li>
-            <li><strong>All-in: $20 upfront + ~$3/month</strong></li>
+            <li><strong>All-in: ~$40 to get started, then ~$3/month</strong></li>
           </ul>
         </div>
 

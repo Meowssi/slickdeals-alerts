@@ -14,7 +14,11 @@
 // the chip in the dashboard but never spams users with follow-up SMS/Telegram/
 // etc. notifications.
 //
-// Auth: service_role JWT, same pattern as poll/notifier.
+// Two entry modes:
+//   - POST {}                  cron full-sweep   — requires service_role JWT.
+//   - POST { deal_ids: [...] } manual feed-button — requires any signed-in user
+//                              JWT; re-scrapes just those deals (capped + rate
+//                              limited) and returns the fresh scores.
 // =============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -24,33 +28,116 @@ const MAX_PER_RUN   = 30;
 const MAX_CONCURRENT = 5;
 const USER_AGENT    = "SlickdealsAlerts/0.1 (+https://github.com/Meowssi/slickdeals-alerts)";
 
+// Manual (feed-button) refresh limits. Caps the fan-out per click and refuses
+// to re-scrape a deal that was just refreshed, so the button can't be used to
+// hammer slickdeals.net.
+const MANUAL_MAX         = 30;
+const MANUAL_COOLDOWN_MS = 60_000;
+
 interface DealRow {
   id: number;
   url: string;
 }
 
+interface ManualDealRow {
+  id: number;
+  url: string;
+  thumb_score: number | null;
+  last_score_refresh_at: string | null;
+}
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req) => {
-  const auth = req.headers.get("Authorization") ?? "";
-  if (!auth.startsWith("Bearer ") || !isServiceRole(auth.slice("Bearer ".length))) {
-    return new Response("unauthorized", { status: 401 });
-  }
-
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin":  "*",
-        "Access-Control-Allow-Headers": "authorization, content-type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-      },
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+  const res = await handle(req);
+  for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v);
+  return res;
+});
+
+async function handle(req: Request): Promise<Response> {
+  if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
+
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return new Response("unauthorized", { status: 401 });
+  const jwt = auth.slice("Bearer ".length);
+
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const supa = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // A `deal_ids` array in the body switches us into manual (feed-button) mode;
+  // an empty body is the cron full-sweep.
+  const body = await req.json().catch(() => null) as { deal_ids?: unknown } | null;
+  const dealIds = Array.isArray(body?.deal_ids)
+    ? body!.deal_ids.filter((x): x is number => typeof x === "number" && Number.isInteger(x))
+    : null;
+
+  if (dealIds) {
+    // Vote scores are global and non-sensitive, so any signed-in user may
+    // refresh them — we only need to confirm the JWT belongs to a real user.
+    const supaUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
     });
+    const { data: userRes } = await supaUser.auth.getUser();
+    if (!userRes?.user) return new Response("unauthorized", { status: 401 });
+    return await handleManual(supa, dealIds);
   }
 
-  const supa = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  // Cron / service_role full-sweep.
+  if (!isServiceRole(jwt)) return new Response("unauthorized", { status: 401 });
+  return await handleCron(supa);
+}
 
+// deno-lint-ignore no-explicit-any
+async function handleManual(supa: any, dealIds: number[]): Promise<Response> {
+  const ids = [...new Set(dealIds)].slice(0, MANUAL_MAX);
+  if (ids.length === 0) return Response.json({ ok: true, scores: [] });
+
+  const { data: deals, error } = await supa
+    .from("deals")
+    .select("id, url, thumb_score, last_score_refresh_at")
+    .in("id", ids);
+  if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+
+  const now = Date.now();
+  const results = await mapWithConcurrency(
+    (deals ?? []) as ManualDealRow[],
+    MAX_CONCURRENT,
+    async (d) => {
+      // Cooldown: if this deal was scraped in the last minute (cron just touched
+      // it, or a double-click), return the score we already have rather than
+      // fetching the page again.
+      const last = d.last_score_refresh_at ? new Date(d.last_score_refresh_at).getTime() : 0;
+      if (now - last < MANUAL_COOLDOWN_MS) {
+        return { id: d.id, score: d.thumb_score ?? null, cooled: true };
+      }
+      try {
+        const score = await fetchThumbScore(d.url);
+        const patch: { thumb_score?: number | null; last_score_refresh_at: string } = {
+          last_score_refresh_at: new Date().toISOString(),
+        };
+        if (score !== null) patch.thumb_score = score;
+        await supa.from("deals").update(patch).eq("id", d.id);
+        return { id: d.id, score: score ?? d.thumb_score ?? null, cooled: false };
+      } catch (_e) {
+        await supa.from("deals").update({ last_score_refresh_at: new Date().toISOString() }).eq("id", d.id);
+        return { id: d.id, score: d.thumb_score ?? null, cooled: false };
+      }
+    },
+  );
+  return Response.json({ ok: true, scores: results });
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleCron(supa: any): Promise<Response> {
   // Oldest-refresh-first, so every deal gets a turn within the 12h window.
   const since = new Date(Date.now() - MAX_AGE_HOURS * 3600 * 1000).toISOString();
   const { data: deals, error } = await supa
@@ -89,7 +176,7 @@ Deno.serve(async (req) => {
     refreshed: results.filter((r) => r.ok).length,
     failed:    results.filter((r) => !r.ok).length,
   });
-});
+}
 
 async function fetchThumbScore(url: string): Promise<number | null> {
   const res = await fetch(url, {

@@ -43,6 +43,8 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
   const [rows, setRows] = useState<FeedRow[]>(initialRows);
   const [highlights, setHighlights] = useState<Set<number>>(new Set());
   const [inputVal, setInputVal] = useState(searchQuery ?? "");
+  const [refreshing, setRefreshing] = useState<Set<number>>(new Set());
+  const [refreshingAll, setRefreshingAll] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset state when filter/alertFilter changes (server re-renders with new initialRows).
@@ -68,6 +70,54 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
       return next;
     });
   }, []);
+
+  // Manually re-scrape vote scores for the given deals via the refresh-scores
+  // edge function, then patch thumb_score in place. The function caps the
+  // fan-out and rate-limits per deal, so a "refresh all visible" click is safe.
+  const refreshScores = useCallback(async (dealIds: number[]) => {
+    const ids = [...new Set(dealIds)];
+    if (ids.length === 0) return;
+    try {
+      const supa = supabaseBrowser();
+      const { data: { session } } = await supa.auth.getSession();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/refresh-scores`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ deal_ids: ids }),
+        },
+      );
+      const json = await res.json().catch(() => null) as
+        | { ok: boolean; scores?: { id: number; score: number | null }[] }
+        | null;
+      if (!json?.ok || !json.scores) return;
+      const byId = new Map(json.scores.map((s) => [s.id, s.score]));
+      setRows((prev) =>
+        prev.map((r) =>
+          byId.has(r.deal_id) ? { ...r, thumb_score: byId.get(r.deal_id) ?? r.thumb_score } : r,
+        ),
+      );
+    } catch {
+      // Network/transient failure — leave the existing scores untouched.
+    }
+  }, []);
+
+  const refreshOne = useCallback(async (dealId: number) => {
+    setRefreshing((prev) => new Set(prev).add(dealId));
+    try {
+      await refreshScores([dealId]);
+    } finally {
+      setRefreshing((prev) => {
+        const next = new Set(prev);
+        next.delete(dealId);
+        return next;
+      });
+    }
+  }, [refreshScores]);
 
   // Subscribe to new alert_matches via Supabase Realtime. RLS scopes it to
   // the current user. Filter by alert_id when an alert chip is active so
@@ -180,6 +230,16 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     return qs ? `/?${qs}` : "/";
   };
 
+  const handleRefreshAll = async () => {
+    if (refreshingAll) return;
+    setRefreshingAll(true);
+    try {
+      await refreshScores(visibleRows.map((r) => r.deal_id));
+    } finally {
+      setRefreshingAll(false);
+    }
+  };
+
   const handleSearchChange = (val: string) => {
     setInputVal(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -197,11 +257,23 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     <div>
       <header className="mb-4 space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
         <h1 className="text-2xl font-semibold">Feed</h1>
-        <div className="flex gap-1 text-sm overflow-x-auto -mx-1 px-1">
-          <FilterTab label="All"       href={buildHref({ filter: null })}      active={!filter} />
-          <FilterTab label="Unread"    href={buildHref({ filter: "unread" })}    active={filter === "unread"} />
-          <FilterTab label="Saved"     href={buildHref({ filter: "saved" })}     active={filter === "saved"} />
-          <FilterTab label="Dismissed" href={buildHref({ filter: "dismissed" })} active={filter === "dismissed"} />
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 text-sm overflow-x-auto -mx-1 px-1">
+            <FilterTab label="All"       href={buildHref({ filter: null })}      active={!filter} />
+            <FilterTab label="Unread"    href={buildHref({ filter: "unread" })}    active={filter === "unread"} />
+            <FilterTab label="Saved"     href={buildHref({ filter: "saved" })}     active={filter === "saved"} />
+            <FilterTab label="Dismissed" href={buildHref({ filter: "dismissed" })} active={filter === "dismissed"} />
+          </div>
+          <button
+            type="button"
+            onClick={handleRefreshAll}
+            disabled={refreshingAll || visibleRows.length === 0}
+            title="Refresh vote scores for the deals shown below"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-neutral-200 dark:border-neutral-700 px-2.5 py-1 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+          >
+            <RefreshIcon spinning={refreshingAll} />
+            <span className="hidden sm:inline">{refreshingAll ? "Refreshing…" : "Refresh votes"}</span>
+          </button>
         </div>
       </header>
 
@@ -247,7 +319,9 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
               <FeedItem
                 row={r}
                 isNew={highlights.has(r.match_id)}
+                refreshing={refreshing.has(r.deal_id)}
                 onClick={() => dropHighlight(r.match_id)}
+                onRefresh={() => refreshOne(r.deal_id)}
               />
             </li>
           ))}
@@ -298,7 +372,34 @@ function merchantLabel(row: FeedRow): string | null {
   return row.store;
 }
 
-function FeedItem({ row, isNew, onClick }: { row: FeedRow; isNew: boolean; onClick: () => void }) {
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className={"h-3.5 w-3.5 " + (spinning ? "animate-spin" : "")}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15" />
+    </svg>
+  );
+}
+
+function FeedItem({
+  row,
+  isNew,
+  refreshing,
+  onClick,
+  onRefresh,
+}: {
+  row: FeedRow;
+  isNew: boolean;
+  refreshing: boolean;
+  onClick: () => void;
+  onRefresh: () => void;
+}) {
   const unread = !row.read_at;
   return (
     <Link href={`/deal/${row.deal_id}`} onClick={onClick} className="block">
@@ -342,6 +443,20 @@ function FeedItem({ row, isNew, onClick }: { row: FeedRow; isNew: boolean; onCli
                 {row.thumb_score >= 0 ? `👍 +${row.thumb_score}` : `👎 ${row.thumb_score}`}
               </span>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!refreshing) onRefresh();
+              }}
+              disabled={refreshing}
+              title="Refresh this deal's vote score"
+              aria-label="Refresh vote score"
+              className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-50"
+            >
+              <RefreshIcon spinning={refreshing} />
+            </button>
             {row.saved && <span className="ml-auto text-xs text-amber-600 dark:text-amber-400">★ saved</span>}
             {isNew && <span className="ml-auto text-xs font-semibold text-yellow-700 dark:text-yellow-400">NEW</span>}
           </div>

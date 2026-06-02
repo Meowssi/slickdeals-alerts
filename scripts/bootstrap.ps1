@@ -41,6 +41,8 @@ supabase functions deploy notifier         --project-ref $projectRef --no-verify
 supabase functions deploy telegram-webhook --project-ref $projectRef --no-verify-jwt
 supabase functions deploy channel-verify   --project-ref $projectRef --no-verify-jwt
 supabase functions deploy send-test        --project-ref $projectRef --no-verify-jwt
+supabase functions deploy poll             --project-ref $projectRef --no-verify-jwt
+supabase functions deploy refresh-scores   --project-ref $projectRef --no-verify-jwt
 
 Write-Host ""
 Write-Host "==> Now go through the README sections:" -ForegroundColor Yellow

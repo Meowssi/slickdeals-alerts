@@ -28,3 +28,9 @@ jobs:
       - name: Deploy send-test
         run: supabase functions deploy send-test --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
         env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
+      - name: Deploy poll
+        run: supabase functions deploy poll --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
+      - name: Deploy refresh-scores
+        run: supabase functions deploy refresh-scores --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }

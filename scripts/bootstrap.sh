@@ -24,7 +24,7 @@ supabase db push --password "$DB_PW"
 
 echo
 echo "==> Deploying edge functions"
-for fn in notifier telegram-webhook channel-verify send-test; do
+for fn in notifier telegram-webhook channel-verify send-test poll refresh-scores; do
   supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt
 done
 

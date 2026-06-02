@@ -14,7 +14,7 @@
     "db:push": "supabase db push",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --linked > packages/shared/src/db.types.ts",
-    "fns:deploy": "supabase functions deploy notifier && supabase functions deploy telegram-webhook && supabase functions deploy channel-verify && supabase functions deploy send-test",
+    "fns:deploy": "supabase functions deploy notifier && supabase functions deploy telegram-webhook && supabase functions deploy channel-verify && supabase functions deploy send-test && supabase functions deploy poll && supabase functions deploy refresh-scores",
     "fns:serve": "supabase functions serve"
   },
   "devDependencies": {

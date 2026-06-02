@@ -34,18 +34,23 @@ interface Props {
   filter: string | null;
   alertFilter: string | null;
   searchQuery: string | null;
+  minVotes: number | null;
+  days: number | null;
+  sort: string | null;
 }
 
 const HIGHLIGHT_MS = 30_000;
 
-export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQuery }: Props) {
+export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQuery, minVotes, days, sort }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<FeedRow[]>(initialRows);
   const [highlights, setHighlights] = useState<Set<number>>(new Set());
   const [inputVal, setInputVal] = useState(searchQuery ?? "");
+  const [votesInput, setVotesInput] = useState(minVotes != null ? String(minVotes) : "");
   const [refreshing, setRefreshing] = useState<Set<number>>(new Set());
   const [refreshingAll, setRefreshingAll] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const votesDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset state when filter/alertFilter changes (server re-renders with new initialRows).
   const initialRef = useRef(initialRows);
@@ -57,10 +62,13 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     }
   }, [initialRows]);
 
-  // Sync input when browser back/forward changes the URL's q param.
+  // Sync inputs when browser back/forward changes the URL params.
   useEffect(() => {
     setInputVal(searchQuery ?? "");
   }, [searchQuery]);
+  useEffect(() => {
+    setVotesInput(minVotes != null ? String(minVotes) : "");
+  }, [minVotes]);
 
   const dropHighlight = useCallback((matchId: number) => {
     setHighlights((prev) => {
@@ -200,14 +208,21 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     };
   }, [alertFilter, dropHighlight]);
 
-  // Apply tab filters (saved / unread / dismissed) then search query.
+  // Apply tab filters (saved / unread / dismissed), then vote/date filters,
+  // then search query.
   const needle = searchQuery?.trim().toLowerCase() ?? "";
+  const cutoff = days != null ? Date.now() - days * 86_400_000 : null;
   const visibleRows = rows.filter((r) => {
     if (filter === "dismissed") { if (!r.dismissed) return false; }
     else {
       if (r.dismissed) return false;
       if (filter === "saved" && !r.saved) return false;
       if (filter === "unread" && r.read_at !== null) return false;
+    }
+    if (minVotes != null && (r.thumb_score ?? -Infinity) < minVotes) return false;
+    if (cutoff != null) {
+      const t = r.rss_pub_at ? new Date(r.rss_pub_at).getTime() : 0;
+      if (t < cutoff) return false;
     }
     if (!needle) return true;
     return (
@@ -218,14 +233,32 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     );
   });
 
-  const buildHref = (next: { filter?: string | null; alert?: string | null; q?: string | null }): string => {
+  // Sort: by votes when requested, else newest-first (the default the server
+  // already applied).
+  if (sort === "votes_desc" || sort === "votes_asc") {
+    const dir = sort === "votes_desc" ? -1 : 1;
+    visibleRows.sort((a, b) => dir * ((a.thumb_score ?? -Infinity) - (b.thumb_score ?? -Infinity)));
+  }
+
+  const filtersActive = minVotes != null || days != null || !!sort || !!needle;
+
+  const buildHref = (next: {
+    filter?: string | null; alert?: string | null; q?: string | null;
+    votes?: number | null; days?: number | null; sort?: string | null;
+  }): string => {
     const sp = new URLSearchParams();
     const f = next.filter !== undefined ? next.filter : filter;
     const a = next.alert  !== undefined ? next.alert  : alertFilter;
     const q = next.q !== undefined ? next.q : (searchQuery ?? null);
+    const v = next.votes !== undefined ? next.votes : minVotes;
+    const d = next.days  !== undefined ? next.days  : days;
+    const s = next.sort  !== undefined ? next.sort  : sort;
     if (f) sp.set("filter", f);
     if (a) sp.set("alert", a);
     if (q) sp.set("q", q);
+    if (v != null) sp.set("votes", String(v));
+    if (d != null) sp.set("days", String(d));
+    if (s) sp.set("sort", s);
     const qs = sp.toString();
     return qs ? `/?${qs}` : "/";
   };
@@ -244,13 +277,23 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     setInputVal(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      const sp = new URLSearchParams();
-      if (filter) sp.set("filter", filter);
-      if (alertFilter) sp.set("alert", alertFilter);
-      if (val.trim()) sp.set("q", val.trim());
-      const qs = sp.toString();
-      router.replace(qs ? `/?${qs}` : "/");
+      router.replace(buildHref({ q: val.trim() || null }));
     }, 300);
+  };
+
+  const handleVotesChange = (val: string) => {
+    setVotesInput(val);
+    if (votesDebounceRef.current) clearTimeout(votesDebounceRef.current);
+    votesDebounceRef.current = setTimeout(() => {
+      const n = val.trim() === "" ? null : Number(val);
+      router.replace(buildHref({ votes: n != null && Number.isFinite(n) ? n : null }));
+    }, 400);
+  };
+
+  const resetFilters = () => {
+    setInputVal("");
+    setVotesInput("");
+    router.replace(buildHref({ q: null, votes: null, days: null, sort: null }));
   };
 
   return (
@@ -299,6 +342,52 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
           placeholder="Search deals…"
           className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 pl-9 pr-4 py-2 text-sm placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="text-neutral-500 dark:text-neutral-400 whitespace-nowrap">👍 ≥</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={votesInput}
+            onChange={(e) => handleVotesChange(e.target.value)}
+            placeholder="any"
+            aria-label="Minimum votes"
+            className="w-20 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+        <select
+          value={days ?? ""}
+          onChange={(e) => router.replace(buildHref({ days: e.target.value ? Number(e.target.value) : null }))}
+          aria-label="Posted within"
+          className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+        >
+          <option value="">Any time</option>
+          <option value="1">Past 24h</option>
+          <option value="3">Past 3 days</option>
+          <option value="7">Past 7 days</option>
+          <option value="30">Past 30 days</option>
+        </select>
+        <select
+          value={sort ?? ""}
+          onChange={(e) => router.replace(buildHref({ sort: e.target.value || null }))}
+          aria-label="Sort by"
+          className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+        >
+          <option value="">Newest</option>
+          <option value="votes_desc">Most votes</option>
+          <option value="votes_asc">Fewest votes</option>
+        </select>
+        {filtersActive && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="ml-auto text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 underline whitespace-nowrap"
+          >
+            Reset filters
+          </button>
+        )}
       </div>
 
       {visibleRows.length === 0 ? (

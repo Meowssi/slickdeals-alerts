@@ -1,6 +1,16 @@
-name: DB migrate (manual)
+name: DB migrate
+
+# Runs automatically when new migration files land on main (e.g. after you sync
+# your fork from upstream), and can also be triggered by hand. The Vercel
+# prebuild applies migrations too, but that step is best-effort/non-fatal — this
+# workflow is the reliable, fail-loud path.
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/db-migrate.yml"
   workflow_dispatch:
     inputs:
       confirm:
@@ -10,8 +20,10 @@ on:
 
 jobs:
   migrate:
-    if: ${{ github.event.inputs.confirm == 'yes' }}
+    # Auto-run on push; on manual dispatch require an explicit "yes".
+    if: ${{ github.event_name == 'push' || github.event.inputs.confirm == 'yes' }}
     runs-on: ubuntu-latest
+    concurrency: db-migrate
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1

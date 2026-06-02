@@ -449,12 +449,30 @@ For deeper digs, see [`docs/operating.md`](operating.md) and [`docs/troubleshoot
 
 ## Updating
 
-Pull latest from upstream into your fork, then push to `main`. The workflows handle the rest:
+**The dashboard tells you when an update is available.** When upstream has new
+commits, admins see an "🚀 update available" banner at the top of the app with
+an **Update (Sync fork)** button.
 
-- New `supabase/migrations/` files → run `DB migrate (manual)` workflow.
-- New `supabase/functions/` code → `Deploy edge functions` workflow fires automatically on push.
-- New `apps/poller/` code → `Deploy poller` workflow fires automatically on push.
-- New `apps/dashboard/` code → Vercel deploys automatically on push.
+To update, it's one click:
+
+1. Click **Update (Sync fork)** in the banner (or open your repo on GitHub and
+   press **Sync fork** → **Update branch**). This fast-forwards your `main` from
+   upstream.
+2. That push triggers everything automatically — no manual steps:
+   - New `supabase/migrations/` files → `DB migrate` workflow runs on push.
+   - New `supabase/functions/` code → deployed by the Vercel prebuild on the
+     next build (and the `Deploy edge functions` workflow).
+   - New `apps/poller/` code → `Deploy poller` workflow runs on push.
+   - New `apps/dashboard/` code → Vercel redeploys on push.
+
+> **Keep updates one-click:** don't edit tracked files. All your configuration
+> (API keys, alert preferences, channels) lives in Vercel/Supabase env vars and
+> the database — never in the repo — so a Sync fork is always a clean
+> fast-forward with nothing to merge. If you *do* edit repo files, GitHub will
+> ask you to resolve a merge instead.
+
+You can also apply migrations by hand anytime via **Actions → DB migrate → Run
+workflow** (type `yes` to confirm).
 
 ---
 

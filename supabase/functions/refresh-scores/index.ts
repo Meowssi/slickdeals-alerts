@@ -117,19 +117,20 @@ async function handleManual(supa: any, dealIds: number[]): Promise<Response> {
       // fetching the page again.
       const last = d.last_score_refresh_at ? new Date(d.last_score_refresh_at).getTime() : 0;
       if (now - last < MANUAL_COOLDOWN_MS) {
-        return { id: d.id, score: d.thumb_score ?? null, cooled: true };
+        return { id: d.id, score: d.thumb_score ?? null, cooled: true, refreshed_at: d.last_score_refresh_at };
       }
+      const ts = new Date().toISOString();
       try {
         const score = await fetchThumbScore(d.url);
         const patch: { thumb_score?: number | null; last_score_refresh_at: string } = {
-          last_score_refresh_at: new Date().toISOString(),
+          last_score_refresh_at: ts,
         };
         if (score !== null) patch.thumb_score = score;
         await supa.from("deals").update(patch).eq("id", d.id);
-        return { id: d.id, score: score ?? d.thumb_score ?? null, cooled: false };
+        return { id: d.id, score: score ?? d.thumb_score ?? null, cooled: false, refreshed_at: ts };
       } catch (_e) {
-        await supa.from("deals").update({ last_score_refresh_at: new Date().toISOString() }).eq("id", d.id);
-        return { id: d.id, score: d.thumb_score ?? null, cooled: false };
+        await supa.from("deals").update({ last_score_refresh_at: ts }).eq("id", d.id);
+        return { id: d.id, score: d.thumb_score ?? null, cooled: false, refreshed_at: ts };
       }
     },
   );

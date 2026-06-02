@@ -22,7 +22,7 @@ export default async function FeedPage({
     .select(`
       id, matched_at, alert_id, deal_id,
       alerts!inner(id, name),
-      deals!inner(id, title, url, price, store, merchant, merchant_domain, thumb_score, thumbnail_url, rss_pub_at)
+      deals!inner(id, title, url, price, store, merchant, merchant_domain, thumb_score, thumbnail_url, rss_pub_at, last_score_refresh_at)
     `)
     .order("matched_at", { ascending: false })
     .limit(200);
@@ -64,6 +64,7 @@ export default async function FeedPage({
       thumb_score: r.deals.thumb_score ?? null,
       thumbnail_url: r.deals.thumbnail_url,
       rss_pub_at: r.deals.rss_pub_at,
+      last_score_refresh_at: r.deals.last_score_refresh_at ?? null,
       saved: state?.saved ?? false,
       dismissed: state?.dismissed ?? false,
       read_at: state?.read_at ?? null,

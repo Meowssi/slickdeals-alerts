@@ -74,6 +74,7 @@ export default async function DealPage({
         <h1 className="text-xl font-semibold">{deal.title}</h1>
         <div className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
           Posted {humanAgo(deal.rss_pub_at)} · First seen {humanAgo(deal.first_seen_at)}
+          {deal.last_score_refresh_at && <> · Votes fetched {humanAgo(deal.last_score_refresh_at)}</>}
         </div>
         <div className="mt-4 flex gap-2">
           <a href={deal.url} target="_blank" rel="noreferrer" className="btn-primary">

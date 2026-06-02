@@ -21,6 +21,7 @@ export interface FeedRow {
   thumb_score: number | null;
   thumbnail_url: string | null;
   rss_pub_at: string | null;
+  last_score_refresh_at: string | null;
   saved: boolean;
   dismissed: boolean;
   read_at: string | null;
@@ -100,14 +101,20 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
         },
       );
       const json = await res.json().catch(() => null) as
-        | { ok: boolean; scores?: { id: number; score: number | null }[] }
+        | { ok: boolean; scores?: { id: number; score: number | null; refreshed_at?: string | null }[] }
         | null;
       if (!json?.ok || !json.scores) return;
-      const byId = new Map(json.scores.map((s) => [s.id, s.score]));
+      const byId = new Map(json.scores.map((s) => [s.id, s]));
       setRows((prev) =>
-        prev.map((r) =>
-          byId.has(r.deal_id) ? { ...r, thumb_score: byId.get(r.deal_id) ?? r.thumb_score } : r,
-        ),
+        prev.map((r) => {
+          const s = byId.get(r.deal_id);
+          if (!s) return r;
+          return {
+            ...r,
+            thumb_score: s.score ?? r.thumb_score,
+            last_score_refresh_at: s.refreshed_at ?? r.last_score_refresh_at,
+          };
+        }),
       );
     } catch {
       // Network/transient failure — leave the existing scores untouched.
@@ -152,7 +159,7 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
             .select(`
               id, matched_at, alert_id, deal_id,
               alerts!inner(id, name),
-              deals!inner(id, title, url, price, store, merchant, merchant_domain, thumb_score, thumbnail_url, rss_pub_at)
+              deals!inner(id, title, url, price, store, merchant, merchant_domain, thumb_score, thumbnail_url, rss_pub_at, last_score_refresh_at)
             `)
             .eq("id", inserted.id)
             .single();
@@ -181,6 +188,7 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
             thumb_score: r.deals.thumb_score ?? null,
             thumbnail_url: r.deals.thumbnail_url,
             rss_pub_at: r.deals.rss_pub_at,
+            last_score_refresh_at: r.deals.last_score_refresh_at ?? null,
             saved: state?.saved ?? false,
             dismissed: state?.dismissed ?? false,
             read_at: state?.read_at ?? null,
@@ -556,6 +564,14 @@ function FeedItem({
             <span>{humanAgo(row.rss_pub_at)}</span>
             <span className="hidden sm:inline mx-1.5">·</span>
             <span className="hidden sm:inline">matched {humanAgo(row.matched_at)}</span>
+            {row.last_score_refresh_at && (
+              <>
+                <span className="hidden sm:inline mx-1.5">·</span>
+                <span className="hidden sm:inline" title="Votes last fetched from Slickdeals">
+                  votes fetched {humanAgo(row.last_score_refresh_at)}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </article>

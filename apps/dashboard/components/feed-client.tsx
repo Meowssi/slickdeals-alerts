@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEventHandler } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -316,6 +316,19 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     if (votesDebounceRef.current) { clearTimeout(votesDebounceRef.current); votesDebounceRef.current = null; }
   };
 
+  // Clear pending timers on unmount — a debounced replace firing after the
+  // user navigated away (e.g. into a deal page) would yank them back to "/".
+  useEffect(() => cancelPendingUrlSync, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Link-click variant: only cancel when the click navigates THIS tab.
+  // Ctrl/cmd/shift/middle-clicks open elsewhere and shouldn't kill the
+  // current tab's pending URL sync.
+  const cancelOnSameTabNav: MouseEventHandler<HTMLAnchorElement> = (e) => {
+    if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+      cancelPendingUrlSync();
+    }
+  };
+
   const resetFilters = () => {
     cancelPendingUrlSync();
     setInputVal("");
@@ -329,10 +342,10 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
         <h1 className="text-2xl font-semibold">Feed</h1>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 text-sm overflow-x-auto -mx-1 px-1">
-            <FilterTab label="All"       href={buildHref({ filter: null })}      active={!filter}              onClick={cancelPendingUrlSync} />
-            <FilterTab label="Unread"    href={buildHref({ filter: "unread" })}    active={filter === "unread"}    onClick={cancelPendingUrlSync} />
-            <FilterTab label="Saved"     href={buildHref({ filter: "saved" })}     active={filter === "saved"}     onClick={cancelPendingUrlSync} />
-            <FilterTab label="Dismissed" href={buildHref({ filter: "dismissed" })} active={filter === "dismissed"} onClick={cancelPendingUrlSync} />
+            <FilterTab label="All"       href={buildHref({ filter: null })}      active={!filter}              onClick={cancelOnSameTabNav} />
+            <FilterTab label="Unread"    href={buildHref({ filter: "unread" })}    active={filter === "unread"}    onClick={cancelOnSameTabNav} />
+            <FilterTab label="Saved"     href={buildHref({ filter: "saved" })}     active={filter === "saved"}     onClick={cancelOnSameTabNav} />
+            <FilterTab label="Dismissed" href={buildHref({ filter: "dismissed" })} active={filter === "dismissed"} onClick={cancelOnSameTabNav} />
           </div>
           <button
             type="button"
@@ -349,9 +362,9 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
 
       {alerts.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-1 text-xs">
-          <AlertChip label="All alerts" href={buildHref({ alert: null })} active={!alertFilter} onClick={cancelPendingUrlSync} />
+          <AlertChip label="All alerts" href={buildHref({ alert: null })} active={!alertFilter} onClick={cancelOnSameTabNav} />
           {alerts.map((a) => (
-            <AlertChip key={a.id} label={a.name} href={buildHref({ alert: a.id })} active={alertFilter === a.id} onClick={cancelPendingUrlSync} />
+            <AlertChip key={a.id} label={a.name} href={buildHref({ alert: a.id })} active={alertFilter === a.id} onClick={cancelOnSameTabNav} />
           ))}
         </div>
       )}
@@ -436,7 +449,7 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
                 row={r}
                 isNew={highlights.has(r.match_id)}
                 refreshing={refreshing.has(r.deal_id)}
-                onClick={() => dropHighlight(r.match_id)}
+                onClick={(e) => { cancelOnSameTabNav(e); dropHighlight(r.match_id); }}
                 onRefresh={() => refreshOne(r.deal_id)}
               />
             </li>
@@ -447,7 +460,7 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
   );
 }
 
-function FilterTab({ label, href, active, onClick }: { label: string; href: string; active: boolean; onClick?: () => void }) {
+function FilterTab({ label, href, active, onClick }: { label: string; href: string; active: boolean; onClick?: MouseEventHandler<HTMLAnchorElement> }) {
   return (
     <Link
       href={href}
@@ -462,7 +475,7 @@ function FilterTab({ label, href, active, onClick }: { label: string; href: stri
   );
 }
 
-function AlertChip({ label, href, active, onClick }: { label: string; href: string; active: boolean; onClick?: () => void }) {
+function AlertChip({ label, href, active, onClick }: { label: string; href: string; active: boolean; onClick?: MouseEventHandler<HTMLAnchorElement> }) {
   return (
     <Link
       href={href}
@@ -515,7 +528,7 @@ function FeedItem({
   row: FeedRow;
   isNew: boolean;
   refreshing: boolean;
-  onClick: () => void;
+  onClick: MouseEventHandler<HTMLAnchorElement>;
   onRefresh: () => void;
 }) {
   const unread = !row.read_at;

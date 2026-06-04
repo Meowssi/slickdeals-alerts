@@ -334,19 +334,38 @@ async function upsertDealsAndMatches(
 
   const { data: existing, error: lookupErr } = await supa
     .from("deals")
-    .select("id, slickdeals_id")
+    .select("id, slickdeals_id, title, url, price, thumbnail_url")
     .in("slickdeals_id", [...bySdId.keys()]);
   // A failed read means the DB itself is unhealthy (no bad-row to isolate),
   // so throw and let pollOne's backoff handle it; the matches insert is
   // idempotent and the next tick retries everything.
   if (lookupErr) throw new Error(`deals lookup failed: ${lookupErr.message}`);
 
+  type ExistingRow = {
+    id: number;
+    slickdeals_id: string;
+    title: string;
+    url: string;
+    price: number | null;
+    thumbnail_url: string | null;
+  };
+  const existingBySdId = new Map<string, ExistingRow>(
+    ((existing ?? []) as ExistingRow[]).map((r) => [r.slickdeals_id, r]),
+  );
   const dealIdBySdId = new Map<string, number>(
-    ((existing ?? []) as { id: number; slickdeals_id: string }[])
-      .map((r) => [r.slickdeals_id, r.id]),
+    [...existingBySdId].map(([sdId, r]) => [sdId, r.id]),
   );
 
-  const newItems = [...bySdId.values()].filter((it) => !dealIdBySdId.has(it.slickdealsId));
+  // Write brand-new deals, plus existing deals whose user-visible fields
+  // were edited on Slickdeals (title/url/price/thumbnail). Vote scores are
+  // deliberately NOT part of the change check — they move on every fetch
+  // and refresh-scores owns them — so steady-state writes stay at zero.
+  const newItems = [...bySdId.values()].filter((it) => {
+    const ex = existingBySdId.get(it.slickdealsId);
+    if (!ex) return true;
+    return ex.title !== it.title || ex.url !== it.url ||
+      ex.price !== it.price || ex.thumbnail_url !== it.thumbnailUrl;
+  });
   if (newItems.length > 0) {
     // upsert (not insert) so a concurrent worker racing on the same deal
     // doesn't error; onConflict resolves to the existing row's id.

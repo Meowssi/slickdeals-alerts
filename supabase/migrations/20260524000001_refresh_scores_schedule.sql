@@ -11,10 +11,15 @@
 alter table public.deals
   add column if not exists last_score_refresh_at timestamptz;
 
+-- Plain index on first_seen_at: the refresh query scans "deals first_seen in
+-- the last 12h" and applies the staleness check on that small window. The
+-- original version put `now()` in a partial-index predicate, which Postgres
+-- rejects (42P17: functions in index predicate must be marked IMMUTABLE) —
+-- that error aborted this migration's transaction (rolling back the column
+-- add above) and blocked every migration after it. Fixed in place: because
+-- the old version always failed, it was never recorded as applied anywhere.
 create index if not exists deals_score_refresh_idx
-  on public.deals (first_seen_at desc)
-  where last_score_refresh_at is null
-     or last_score_refresh_at < now() - interval '5 minutes';
+  on public.deals (first_seen_at desc);
 
 -- SECURITY DEFINER wrapper so pg_cron can hit the edge function with the
 -- service_role key from vault. Same pattern as invoke_poll().

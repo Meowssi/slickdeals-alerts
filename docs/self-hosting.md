@@ -450,26 +450,46 @@ For deeper digs, see [`docs/operating.md`](operating.md) and [`docs/troubleshoot
 ## Updating
 
 **The dashboard tells you when an update is available.** When upstream has new
-commits, admins see an "🚀 update available" banner at the top of the app with
-an **Update (Sync fork)** button.
+commits, admins see an "🚀 update available" banner at the top of the app.
 
-To update, it's one click:
+> Note: the Deploy-to-Vercel button creates a **clone** of the template, not a
+> GitHub fork — so GitHub's "Sync fork" button doesn't exist on your repo. The
+> `Sync from upstream template` workflow (included in the repo) replaces it.
 
-1. Click **Update (Sync fork)** in the banner (or open your repo on GitHub and
-   press **Sync fork** → **Update branch**). This fast-forwards your `main` from
-   upstream.
-2. That push triggers everything automatically — no manual steps:
-   - New `supabase/migrations/` files → `DB migrate` workflow runs on push.
-   - New `supabase/functions/` code → deployed by the Vercel prebuild on the
-     next build (and the `Deploy edge functions` workflow).
+**The default is zero clicks:** the `Sync from upstream template` workflow in
+your repo runs **automatically every ~6 hours** and applies updates end to end
+— no tokens, no setup, nothing to configure. Opt out by setting the repo
+variable `AUTO_SYNC_UPSTREAM=false` (Settings → Secrets and variables →
+Actions → Variables).
+
+In a hurry? Two faster paths:
+
+1. **One click on GitHub** — the banner's **Update on GitHub** button opens
+   your repo's **Actions → Sync from upstream template** page. Press
+   **Run workflow**; done.
+2. **One click in the dashboard** (optional power-up) — if `GITHUB_TOKEN` is
+   set (a PAT with `repo` + `workflow` scopes, see `/admin/setup`), the banner
+   shows an **Update now** button instead.
+
+Whichever path you take, the workflow merges the upstream template into your
+`main` and pushes. That push triggers everything else automatically:
+
+   - `apps/dashboard/` changes → Vercel redeploys on push.
+   - New `supabase/migrations/` files → applied by the Vercel prebuild during
+     that deploy (and by the `DB migrate` workflow, if you set its secrets).
+   - New `supabase/functions/` code → deployed by the Vercel prebuild.
    - New `apps/poller/` code → `Deploy poller` workflow runs on push.
-   - New `apps/dashboard/` code → Vercel redeploys on push.
 
 > **Keep updates one-click:** don't edit tracked files. All your configuration
 > (API keys, alert preferences, channels) lives in Vercel/Supabase env vars and
-> the database — never in the repo — so a Sync fork is always a clean
-> fast-forward with nothing to merge. If you *do* edit repo files, GitHub will
-> ask you to resolve a merge instead.
+> the database — never in the repo — so an update is always a clean merge with
+> nothing to resolve. If you *do* edit repo files, the workflow stops on a
+> merge conflict and tells you how to resolve it.
+
+> **Edge case:** if an update changes files under `.github/workflows/`, the
+> workflow's built-in token can't push them (a GitHub security restriction).
+> The run fails with instructions: add a PAT with `repo`+`workflow` scopes as
+> the `GH_PAT` repo secret and re-run.
 
 You can also apply migrations by hand anytime via **Actions → DB migrate → Run
 workflow** (type `yes` to confirm).

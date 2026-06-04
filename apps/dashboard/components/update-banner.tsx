@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import type { UpdateStatus } from "@/lib/upstream";
 import { syncUpstreamAction, type SyncUpstreamResult } from "@/lib/update-actions";
 
@@ -8,16 +8,21 @@ import { syncUpstreamAction, type SyncUpstreamResult } from "@/lib/update-action
 // who can actually update the deployment). Dismissal is remembered per
 // upstream-version so a new update re-shows it.
 //
-// Two update paths:
-//   1. GITHUB_TOKEN configured → "Update now" button triggers the
-//      sync-upstream.yml workflow right here; Vercel redeploys automatically.
+// Updates are hands-off by default: the sync-upstream workflow in the user's
+// repo applies them automatically every ~6 hours, so the banner's job is
+// mostly to say "new stuff is coming on its own". For the impatient:
+//   1. GITHUB_TOKEN configured → "Update now" button triggers the workflow
+//      right here; Vercel redeploys automatically.
 //   2. No token → link to the workflow's "Run workflow" page on GitHub, with
 //      a plain-English hint of the one button to press there.
 export function UpdateBanner({ status }: { status: UpdateStatus }) {
   const dismissKey = `update-dismissed:${status.compareUrl ?? ""}`;
   const [dismissed, setDismissed] = useState(true); // assume dismissed until we read storage (avoids flash)
   const [result, setResult] = useState<SyncUpstreamResult | null>(null);
-  const [pending, startTransition] = useTransition();
+  // Plain state, NOT useTransition: in React 18 an async transition callback
+  // releases isPending at its first await, which would re-enable the button
+  // mid-request and allow duplicate workflow dispatches.
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     try {
@@ -35,10 +40,16 @@ export function UpdateBanner({ status }: { status: UpdateStatus }) {
       ? `${count} new ${count === 1 ? "update" : "updates"} available`
       : "An update is available";
 
-  const runUpdate = () => {
-    startTransition(async () => {
+  const runUpdate = async () => {
+    if (pending) return;
+    setPending(true);
+    try {
       setResult(await syncUpstreamAction());
-    });
+    } catch {
+      setResult({ ok: false, message: "Couldn't reach the server — check your connection and try again." });
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -91,10 +102,17 @@ export function UpdateBanner({ status }: { status: UpdateStatus }) {
             ✕
           </button>
         </div>
-        {!result?.ok && !status.canTrigger && status.actionsUrl && (
+        {!result?.ok && (
           <p className="basis-full text-xs text-brand-700/80 dark:text-brand-400/80 m-0">
-            Updating is one click: open the link, press <strong>Run workflow</strong>, done — your
-            dashboard rebuilds itself (including database changes) in ~3 minutes.
+            {status.canTrigger || !status.actionsUrl ? (
+              <>No rush — updates install themselves automatically within ~6 hours.</>
+            ) : (
+              <>
+                No rush — updates install themselves automatically within ~6 hours. In a hurry?
+                Open the link, press <strong>Run workflow</strong>, done — your dashboard rebuilds
+                itself (including database changes) in ~3 minutes.
+              </>
+            )}
           </p>
         )}
         {result && !result.ok && (

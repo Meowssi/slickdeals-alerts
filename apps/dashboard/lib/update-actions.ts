@@ -35,17 +35,29 @@ export async function syncUpstreamAction(): Promise<SyncUpstreamResult> {
     };
   }
 
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+
+  // Dispatch against the repo's actual default branch — not a hardcoded
+  // "main" — so repos with e.g. "master" still get one-click updates.
+  let defaultBranch = "main";
+  try {
+    const repoRes = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+    if (repoRes.ok) {
+      const meta = await repoRes.json() as { default_branch?: string };
+      if (meta.default_branch) defaultBranch = meta.default_branch;
+    }
+  } catch { /* fall back to "main" */ }
+
   const res = await fetch(
     `https://api.github.com/repos/${repo}/actions/workflows/sync-upstream.yml/dispatches`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ref: "main" }),
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: defaultBranch }),
     },
   );
 

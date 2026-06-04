@@ -456,18 +456,20 @@ commits, admins see an "🚀 update available" banner at the top of the app.
 > GitHub fork — so GitHub's "Sync fork" button doesn't exist on your repo. The
 > `Sync from upstream template` workflow (included in the repo) replaces it.
 
-To update, pick whichever is easiest:
+**The default is zero clicks:** the `Sync from upstream template` workflow in
+your repo runs **automatically every ~6 hours** and applies updates end to end
+— no tokens, no setup, nothing to configure. Opt out by setting the repo
+variable `AUTO_SYNC_UPSTREAM=false` (Settings → Secrets and variables →
+Actions → Variables).
 
-1. **One click in the dashboard** — if `GITHUB_TOKEN` is set (a PAT with
-   `repo` + `workflow` scopes, see `/admin/setup`), the banner shows an
-   **Update now** button. Click it; done.
-2. **One click on GitHub** — without a token, the banner's **Update on GitHub**
-   button opens your repo's **Actions → Sync from upstream template** page.
-   Press **Run workflow**; done.
-3. **Fully automatic** — the same workflow also runs nightly, so by default
-   you stay current without doing anything. Opt out by setting the repo
-   variable `AUTO_SYNC_UPSTREAM=false` (Settings → Secrets and variables →
-   Actions → Variables).
+In a hurry? Two faster paths:
+
+1. **One click on GitHub** — the banner's **Update on GitHub** button opens
+   your repo's **Actions → Sync from upstream template** page. Press
+   **Run workflow**; done.
+2. **One click in the dashboard** (optional power-up) — if `GITHUB_TOKEN` is
+   set (a PAT with `repo` + `workflow` scopes, see `/admin/setup`), the banner
+   shows an **Update now** button instead.
 
 Whichever path you take, the workflow merges the upstream template into your
 `main` and pushes. That push triggers everything else automatically:

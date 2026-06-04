@@ -97,8 +97,9 @@ export async function checkForUpdate(): Promise<UpdateStatus> {
       // Fall through to the upstream-side compare below.
     }
 
-    // Fallback: compare inside the (public) upstream repo. Only works when the
-    // deployed SHA exists upstream — true until the user merges their own PRs.
+    // Fallback 1: compare inside the (public) upstream repo. Only works when
+    // the deployed SHA exists upstream — true until the user merges their own
+    // PRs.
     const res = await fetch(
       `https://api.github.com/repos/${UPSTREAM_REPO}/compare/${current}...${UPSTREAM_BRANCH}`,
       fetchOpts,
@@ -109,8 +110,27 @@ export async function checkForUpdate(): Promise<UpdateStatus> {
       return behind > 0 ? found(behind, data.html_url) : NOT_AVAILABLE;
     }
 
-    // Can't tell (diverged clone, no token). Stay quiet rather than guess —
-    // the old HEAD-SHA fallback here is what produced permanent false alarms.
+    // Fallback 2 (zero-token, works for private clones): the build baked in
+    // upstream's HEAD as of deploy time (next.config.mjs). Since deploys are
+    // (by design) upstream syncs, anything upstream published after this
+    // build is an update. Both SHAs live in the public upstream repo, so this
+    // compare needs no auth.
+    const baked = process.env.UPSTREAM_SHA_AT_BUILD;
+    if (baked) {
+      const res2 = await fetch(
+        `https://api.github.com/repos/${UPSTREAM_REPO}/compare/${baked}...${UPSTREAM_BRANCH}`,
+        fetchOpts,
+      );
+      if (res2.ok) {
+        const data = await res2.json() as { ahead_by?: number; html_url?: string };
+        const behind = data.ahead_by ?? 0;
+        return behind > 0 ? found(behind, data.html_url) : NOT_AVAILABLE;
+      }
+    }
+
+    // Can't tell (diverged clone, no token, no baked SHA). Stay quiet rather
+    // than guess — the old HEAD-SHA fallback here is what produced permanent
+    // false alarms.
     return NOT_AVAILABLE;
   } catch {
     // Network hiccup / rate limit — fail silent, just don't show the banner.

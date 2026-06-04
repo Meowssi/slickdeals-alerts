@@ -336,6 +336,9 @@ async function upsertDealsAndMatches(
     .from("deals")
     .select("id, slickdeals_id")
     .in("slickdeals_id", [...bySdId.keys()]);
+  // A failed read means the DB itself is unhealthy (no bad-row to isolate),
+  // so throw and let pollOne's backoff handle it; the matches insert is
+  // idempotent and the next tick retries everything.
   if (lookupErr) throw new Error(`deals lookup failed: ${lookupErr.message}`);
 
   const dealIdBySdId = new Map<string, number>(
@@ -351,9 +354,23 @@ async function upsertDealsAndMatches(
       .from("deals")
       .upsert(newItems.map(dealRow), { onConflict: "slickdeals_id", ignoreDuplicates: false })
       .select("id, slickdeals_id");
-    if (insertErr) throw new Error(`deals upsert failed: ${insertErr.message}`);
-    for (const r of (inserted ?? []) as { id: number; slickdeals_id: string }[]) {
-      dealIdBySdId.set(r.slickdeals_id, r.id);
+    if (insertErr) {
+      // The batch failed — likely one poisoned row (e.g. an oversized raw
+      // payload). Fall back to per-item upserts so a single bad item can't
+      // block every other new deal for as long as it stays in the feed.
+      // This path only runs on errors, so it doesn't affect normal egress.
+      for (const it of newItems) {
+        const { data: one } = await supa
+          .from("deals")
+          .upsert(dealRow(it), { onConflict: "slickdeals_id", ignoreDuplicates: false })
+          .select("id, slickdeals_id")
+          .single();
+        if (one) dealIdBySdId.set((one as { slickdeals_id: string }).slickdeals_id, (one as { id: number }).id);
+      }
+    } else {
+      for (const r of (inserted ?? []) as { id: number; slickdeals_id: string }[]) {
+        dealIdBySdId.set(r.slickdeals_id, r.id);
+      }
     }
   }
 
@@ -370,7 +387,16 @@ async function upsertDealsAndMatches(
     .from("alert_matches")
     .upsert(matchRows, { onConflict: "alert_id,deal_id", ignoreDuplicates: true })
     .select("id");
-  if (matchErr) throw new Error(`alert_matches insert failed: ${matchErr.message}`);
+  if (matchErr) {
+    // Same bad-row isolation as the deals upsert: persist what we can
+    // one-by-one rather than dropping every match in this batch.
+    let count = 0;
+    for (const row of matchRows) {
+      const { error } = await supa.from("alert_matches").insert(row);
+      if (!error) count++; // unique violation = already matched; expected
+    }
+    return count;
+  }
   return (insertedMatches ?? []).length;
 }
 

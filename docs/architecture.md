@@ -45,12 +45,16 @@
 
 ## Why these pieces
 
-**Why a Fly machine for the poller (not pg_cron, not Vercel Cron, not GitHub Actions):**
-all of those minimum-cadence at 1 minute. A small always-on Node process
-also lets us keep ETag/If-Modified-Since in memory across polls (politer to Slickdeals).
-(The hosted default is now pg_cron → `poll` edge function at 60s — Slickdeals' RSS
-TTL is 5 minutes, so faster polling buys latency the feed doesn't deliver, and the
-60s cadence keeps PostgREST egress inside Supabase's free tier.)
+**Why pg_cron → `poll` edge function for the poller (the hosted default):**
+zero extra infrastructure — everything runs inside Supabase. The 60s cadence is
+deliberate: Slickdeals' RSS advertises a 5-minute TTL, so polling faster buys
+latency the feed doesn't deliver, and 60s keeps PostgREST egress comfortably
+inside Supabase's free tier.
+
+**Why the optional Fly machine poller exists:** an always-on Node process can poll
+faster than any hosted scheduler allows and keeps ETag/If-Modified-Since in memory
+across polls (politer to Slickdeals). Only worth running if you genuinely need
+sub-minute latency.
 
 **Why Supabase RLS for multi-tenancy:** RLS makes "share my instance with coworkers"
 a zero-effort feature. Every domain table has `user_id` + a policy. Service role

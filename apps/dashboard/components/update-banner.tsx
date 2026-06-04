@@ -1,14 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { UpdateStatus } from "@/lib/upstream";
+import { syncUpstreamAction, type SyncUpstreamResult } from "@/lib/update-actions";
 
 // Dismissable "update available" banner. Shown only to admins (the operator
-// who can actually sync the fork). Dismissal is remembered per upstream-version
-// so a new update re-shows it.
+// who can actually update the deployment). Dismissal is remembered per
+// upstream-version so a new update re-shows it.
+//
+// Two update paths:
+//   1. GITHUB_TOKEN configured → "Update now" button triggers the
+//      sync-upstream.yml workflow right here; Vercel redeploys automatically.
+//   2. No token → link to the workflow's "Run workflow" page on GitHub, with
+//      a plain-English hint of the one button to press there.
 export function UpdateBanner({ status }: { status: UpdateStatus }) {
   const dismissKey = `update-dismissed:${status.compareUrl ?? ""}`;
   const [dismissed, setDismissed] = useState(true); // assume dismissed until we read storage (avoids flash)
+  const [result, setResult] = useState<SyncUpstreamResult | null>(null);
+  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     try {
@@ -26,14 +35,20 @@ export function UpdateBanner({ status }: { status: UpdateStatus }) {
       ? `${count} new ${count === 1 ? "update" : "updates"} available`
       : "An update is available";
 
+  const runUpdate = () => {
+    startTransition(async () => {
+      setResult(await syncUpstreamAction());
+    });
+  };
+
   return (
     <div className="bg-brand-50 dark:bg-brand-700/20 border-b border-brand-100 dark:border-brand-700 text-sm">
-      <div className="mx-auto w-full max-w-5xl px-4 py-2 flex items-center gap-3">
+      <div className="mx-auto w-full max-w-5xl px-4 py-2 flex items-center gap-3 flex-wrap">
         <span className="text-brand-700 dark:text-brand-400">
-          🚀 {countLabel} from the upstream template.
+          {result?.ok ? <>✅ {result.message}</> : <>🚀 {countLabel} from the upstream template.</>}
         </span>
         <div className="ml-auto flex items-center gap-3 whitespace-nowrap">
-          {status.compareUrl && (
+          {!result?.ok && status.compareUrl && (
             <a
               href={status.compareUrl}
               target="_blank"
@@ -43,15 +58,25 @@ export function UpdateBanner({ status }: { status: UpdateStatus }) {
               What changed
             </a>
           )}
-          {status.forkUrl && (
+          {!result?.ok && status.canTrigger && (
+            <button
+              type="button"
+              onClick={runUpdate}
+              disabled={pending}
+              className="rounded-md bg-brand-600 text-white px-2.5 py-1 font-medium hover:bg-brand-700 disabled:opacity-60"
+            >
+              {pending ? "Starting update…" : "Update now"}
+            </button>
+          )}
+          {!result?.ok && !status.canTrigger && status.actionsUrl && (
             <a
-              href={status.forkUrl}
+              href={status.actionsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-md bg-brand-600 text-white px-2.5 py-1 font-medium hover:bg-brand-700"
-              title="Opens your repo on GitHub — click 'Sync fork' there to update"
+              title="Opens GitHub Actions — press 'Run workflow' there and your dashboard updates itself in ~3 minutes"
             >
-              Update (Sync fork)
+              Update on GitHub
             </a>
           )}
           <button
@@ -66,6 +91,15 @@ export function UpdateBanner({ status }: { status: UpdateStatus }) {
             ✕
           </button>
         </div>
+        {!result?.ok && !status.canTrigger && status.actionsUrl && (
+          <p className="basis-full text-xs text-brand-700/80 dark:text-brand-400/80 m-0">
+            Updating is one click: open the link, press <strong>Run workflow</strong>, done — your
+            dashboard rebuilds itself (including database changes) in ~3 minutes.
+          </p>
+        )}
+        {result && !result.ok && (
+          <p className="basis-full text-xs text-red-700 dark:text-red-400 m-0">{result.message}</p>
+        )}
       </div>
     </div>
   );

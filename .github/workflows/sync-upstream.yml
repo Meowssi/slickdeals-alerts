@@ -1,0 +1,72 @@
+name: Sync from upstream template
+
+# One-click updater for self-hosted deployments. Merges the upstream template
+# (Meowssi/slickdeals-alerts) into this repo and pushes. Vercel's Git
+# integration sees the push and redeploys; the dashboard prebuild then applies
+# any new DB migrations automatically. No secrets required for the common case
+# — the workflow's built-in GITHUB_TOKEN can push to its own repo.
+#
+# Three ways to trigger:
+#   1. The dashboard's update banner ("Update now" — needs GITHUB_TOKEN env on
+#      Vercel, see /admin/setup).
+#   2. GitHub → Actions tab → "Sync from upstream template" → "Run workflow".
+#   3. Nightly schedule (opt out by setting repo variable
+#      AUTO_SYNC_UPSTREAM=false under Settings → Secrets and variables →
+#      Actions → Variables).
+#
+# Limitation: the built-in GITHUB_TOKEN cannot push changes to
+# .github/workflows/** files. If an update modifies workflow files this run
+# fails with a clear error — add a classic PAT with repo+workflow scopes as
+# the GH_PAT repo secret and re-run.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 9 * * *" # daily, off-peak; arbitrary minute to spread load
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM_REPO: Meowssi/slickdeals-alerts
+  UPSTREAM_BRANCH: main
+
+jobs:
+  sync:
+    # Never run on the template repo itself; honor the schedule opt-out.
+    if: |
+      github.repository != 'Meowssi/slickdeals-alerts' &&
+      (github.event_name != 'schedule' || vars.AUTO_SYNC_UPSTREAM != 'false')
+    runs-on: ubuntu-latest
+    concurrency: sync-upstream
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT || github.token }}
+
+      - name: Merge upstream and push
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
+          git fetch upstream "${UPSTREAM_BRANCH}"
+
+          if git merge-base --is-ancestor "upstream/${UPSTREAM_BRANCH}" HEAD; then
+            echo "Already up to date with upstream — nothing to do."
+            exit 0
+          fi
+
+          if ! git merge --no-edit "upstream/${UPSTREAM_BRANCH}"; then
+            echo "::error::Merge conflict with upstream — this repo has local changes that overlap an update. Clone the repo, run: git pull https://github.com/${UPSTREAM_REPO}.git ${UPSTREAM_BRANCH} — resolve the conflicts, and push."
+            exit 1
+          fi
+
+          if ! git push origin "HEAD:${GITHUB_REF_NAME}"; then
+            echo "::error::Push rejected. If this update changes .github/workflows files, the built-in GITHUB_TOKEN cannot push them — add a PAT with repo+workflow scopes as the GH_PAT repo secret (Settings → Secrets and variables → Actions) and re-run this workflow."
+            exit 1
+          fi
+
+          echo "Merged upstream/${UPSTREAM_BRANCH}. Vercel will redeploy automatically; new DB migrations apply during the build."

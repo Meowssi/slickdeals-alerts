@@ -63,9 +63,11 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     }
   }, [initialRows]);
 
-  // Sync inputs when browser back/forward changes the URL params.
+  // Sync inputs when browser back/forward changes the URL params — but don't
+  // stomp the box while the user's keystrokes are still in flight to the URL
+  // (the prop lags the input by a debounce + server round-trip).
   useEffect(() => {
-    setInputVal(searchQuery ?? "");
+    setInputVal((cur) => ((searchQuery ?? "") === cur.trim() ? cur : (searchQuery ?? "")));
   }, [searchQuery]);
   useEffect(() => {
     setVotesInput(minVotes != null ? String(minVotes) : "");
@@ -257,8 +259,16 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     const sp = new URLSearchParams();
     const f = next.filter !== undefined ? next.filter : filter;
     const a = next.alert  !== undefined ? next.alert  : alertFilter;
-    const q = next.q !== undefined ? next.q : (searchQuery ?? null);
-    const v = next.votes !== undefined ? next.votes : minVotes;
+    // q/votes carry over from the LIVE inputs, not the server-confirmed
+    // props: the URL only catches up to the inputs after a debounce + server
+    // round-trip, so navigating via tabs/chips/selects inside that window
+    // would resurrect a search term the user already cleared (and the
+    // searchQuery sync effect would then write it back into the box).
+    const liveVotes = votesInput.trim() === "" ? null : Number(votesInput);
+    const q = next.q !== undefined ? next.q : (inputVal.trim() || null);
+    const v = next.votes !== undefined
+      ? next.votes
+      : (liveVotes != null && Number.isFinite(liveVotes) ? liveVotes : null);
     const d = next.days  !== undefined ? next.days  : days;
     const s = next.sort  !== undefined ? next.sort  : sort;
     if (f) sp.set("filter", f);
@@ -298,7 +308,16 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     }, 400);
   };
 
+  // A pending debounced replace would fire with the *previous* render's
+  // filter/alert closed over — navigating and then letting it fire would undo
+  // the navigation. Cancel before any explicit navigation.
+  const cancelPendingUrlSync = () => {
+    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+    if (votesDebounceRef.current) { clearTimeout(votesDebounceRef.current); votesDebounceRef.current = null; }
+  };
+
   const resetFilters = () => {
+    cancelPendingUrlSync();
     setInputVal("");
     setVotesInput("");
     router.replace(buildHref({ q: null, votes: null, days: null, sort: null }));
@@ -310,10 +329,10 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
         <h1 className="text-2xl font-semibold">Feed</h1>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 text-sm overflow-x-auto -mx-1 px-1">
-            <FilterTab label="All"       href={buildHref({ filter: null })}      active={!filter} />
-            <FilterTab label="Unread"    href={buildHref({ filter: "unread" })}    active={filter === "unread"} />
-            <FilterTab label="Saved"     href={buildHref({ filter: "saved" })}     active={filter === "saved"} />
-            <FilterTab label="Dismissed" href={buildHref({ filter: "dismissed" })} active={filter === "dismissed"} />
+            <FilterTab label="All"       href={buildHref({ filter: null })}      active={!filter}              onClick={cancelPendingUrlSync} />
+            <FilterTab label="Unread"    href={buildHref({ filter: "unread" })}    active={filter === "unread"}    onClick={cancelPendingUrlSync} />
+            <FilterTab label="Saved"     href={buildHref({ filter: "saved" })}     active={filter === "saved"}     onClick={cancelPendingUrlSync} />
+            <FilterTab label="Dismissed" href={buildHref({ filter: "dismissed" })} active={filter === "dismissed"} onClick={cancelPendingUrlSync} />
           </div>
           <button
             type="button"
@@ -330,9 +349,9 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
 
       {alerts.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-1 text-xs">
-          <AlertChip label="All alerts" href={buildHref({ alert: null })} active={!alertFilter} />
+          <AlertChip label="All alerts" href={buildHref({ alert: null })} active={!alertFilter} onClick={cancelPendingUrlSync} />
           {alerts.map((a) => (
-            <AlertChip key={a.id} label={a.name} href={buildHref({ alert: a.id })} active={alertFilter === a.id} />
+            <AlertChip key={a.id} label={a.name} href={buildHref({ alert: a.id })} active={alertFilter === a.id} onClick={cancelPendingUrlSync} />
           ))}
         </div>
       )}
@@ -367,7 +386,7 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
         </div>
         <select
           value={days ?? ""}
-          onChange={(e) => router.replace(buildHref({ days: e.target.value ? Number(e.target.value) : null }))}
+          onChange={(e) => { cancelPendingUrlSync(); router.replace(buildHref({ days: e.target.value ? Number(e.target.value) : null })); }}
           aria-label="Posted within"
           className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
@@ -379,7 +398,7 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
         </select>
         <select
           value={sort ?? ""}
-          onChange={(e) => router.replace(buildHref({ sort: e.target.value || null }))}
+          onChange={(e) => { cancelPendingUrlSync(); router.replace(buildHref({ sort: e.target.value || null })); }}
           aria-label="Sort by"
           className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
@@ -428,10 +447,11 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
   );
 }
 
-function FilterTab({ label, href, active }: { label: string; href: string; active: boolean }) {
+function FilterTab({ label, href, active, onClick }: { label: string; href: string; active: boolean; onClick?: () => void }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={
         "px-3 py-1 rounded-md " +
         (active ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100")
@@ -442,10 +462,11 @@ function FilterTab({ label, href, active }: { label: string; href: string; activ
   );
 }
 
-function AlertChip({ label, href, active }: { label: string; href: string; active: boolean }) {
+function AlertChip({ label, href, active, onClick }: { label: string; href: string; active: boolean; onClick?: () => void }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={
         "px-2.5 py-1 rounded-full border transition " +
         (active

@@ -8,7 +8,7 @@
    │ (one URL per saved search)          │
    └──────────────┬─────────────────────┘
                   │  HTTP GET (ETag / If-Modified-Since)
-                  │  30s cadence, per-feed exp. backoff on errors
+                  │  60s cadence, per-feed exp. backoff on errors
                   ▼
    ┌────────────────────────────────────┐
    │ Poller   (Fly.io machine, Node)     │
@@ -45,9 +45,16 @@
 
 ## Why these pieces
 
-**Why a Fly machine for the poller (not pg_cron, not Vercel Cron, not GitHub Actions):**
-all of those minimum-cadence at 1 minute. We want 30s. A small always-on Node process
-also lets us keep ETag/If-Modified-Since in memory across polls (politer to Slickdeals).
+**Why pg_cron → `poll` edge function for the poller (the hosted default):**
+zero extra infrastructure — everything runs inside Supabase. The 60s cadence is
+deliberate: Slickdeals' RSS advertises a 5-minute TTL, so polling faster buys
+latency the feed doesn't deliver, and 60s keeps PostgREST egress comfortably
+inside Supabase's free tier.
+
+**Why the optional Fly machine poller exists:** an always-on Node process can poll
+faster than any hosted scheduler allows and keeps ETag/If-Modified-Since in memory
+across polls (politer to Slickdeals). Only worth running if you genuinely need
+sub-minute latency.
 
 **Why Supabase RLS for multi-tenancy:** RLS makes "share my instance with coworkers"
 a zero-effort feature. Every domain table has `user_id` + a policy. Service role
@@ -60,15 +67,19 @@ that drives the picker.
 
 ## Data flow: one deal end-to-end
 
-1. **Poller tick** (every 30s):
+1. **Poller tick** (every 60s):
    `listEnabledAlerts()` → oldest `last_polled_at` first.
 2. **Fetch** with `If-None-Match: <last_etag>`.
    - `304 Not Modified` → bump `last_polled_at`, done.
-   - `200` → parse RSS items.
-3. **Per item**:
-   - `upsertDeal(item)` on `slickdeals_id` (unique).
-   - For each alert this feed matched: `insertMatch(user_id, alert_id, deal_id)`.
-     Unique `(alert_id, deal_id)` constraint makes this idempotent.
+   - `200` → parse RSS items, filter to the alert's matchers. On an alert's
+     *first* poll, keep only the 10 newest matches so a new alert doesn't
+     flood the feed/notifications with the feed's backlog.
+3. **Per feed** (batched — three PostgREST round-trips, not one per item):
+   - Look up which `slickdeals_id`s already exist in `deals`.
+   - Array-upsert only the new items (existing deals are not re-written;
+     `refresh-scores` keeps vote counts fresh).
+   - Array-insert `alert_matches` with `ON CONFLICT DO NOTHING` on the unique
+     `(alert_id, deal_id)` constraint — idempotent across re-polls.
 4. **DB trigger** `alert_matches AFTER INSERT` calls `pg_net.http_post` to the
    `notifier` edge function with `{match_id, user_id, alert_id, deal_id}`.
 5. **Notifier**:

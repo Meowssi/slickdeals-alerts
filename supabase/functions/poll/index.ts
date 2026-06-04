@@ -1,10 +1,17 @@
 // =============================================================================
 // poll
 // -----------------------------------------------------------------------------
-// One polling pass per invocation. Triggered by pg_cron every 30s.
+// One polling pass per invocation. Triggered by pg_cron every 60s.
 // Lists enabled alerts, fetches RSS for each (conditional GET via ETag /
-// If-Modified-Since), parses, upserts new deals, inserts matches. The
-// notify_on_match DB trigger fans matches out via the user's channels.
+// If-Modified-Since), parses, batch-upserts only-new deals, batch-inserts
+// matches. The notify_on_match DB trigger fans matches out via the user's
+// channels.
+//
+// Egress note: PostgREST responses cost ~600-800B of headers each, so this
+// function batches DB writes into a fixed number of round-trips per feed
+// (lookup + deals upsert + matches insert) instead of one per RSS item.
+// Per-item requests at a 30s cadence were ~600MB/month of pure header
+// egress — enough to blow the Supabase free tier on their own.
 //
 // Auth: service_role JWT in Authorization header (pg_cron passes this from
 // the vault entry — see invoke_poll() in the schedule migration).
@@ -16,11 +23,14 @@ import { XMLParser } from "https://esm.sh/fast-xml-parser@4.5.0";
 const MAX_BACKOFF_SECONDS = 10 * 60;
 const MAX_CONCURRENT = 2;
 const USER_AGENT = "SlickdealsAlerts/0.1 (+https://github.com/Meowssi/slickdeals-alerts)";
+// A brand-new alert sees a feed full of pre-existing deals. Cap the backfill
+// so creating an alert doesn't flood the feed + notification channels with
+// 25+ old items — only the newest few seed the feed.
+const FIRST_POLL_MAX_MATCHES = 10;
 
 interface AlertRow {
   id: string;
   user_id: string;
-  name: string;
   rss_url: string;
   title_include: string[];
   title_exclude: string[];
@@ -71,7 +81,7 @@ async function tick(supa: SupabaseClient): Promise<{ polled: number; matches: nu
   const start = Date.now();
   const { data: alertsRaw, error } = await supa
     .from("alerts")
-    .select("id, user_id, name, rss_url, title_include, title_exclude, min_price, max_price, last_polled_at, last_etag, last_modified, consecutive_errors")
+    .select("id, user_id, rss_url, title_include, title_exclude, min_price, max_price, last_polled_at, last_etag, last_modified, consecutive_errors")
     .eq("enabled", true)
     .order("last_polled_at", { ascending: true, nullsFirst: true });
   if (error) {
@@ -119,14 +129,17 @@ async function pollOne(supa: SupabaseClient, alert: AlertRow): Promise<number> {
     }
 
     const items = parseRss(fetched.body);
-    let newMatches = 0;
-    for (const item of items) {
-      if (!dealMatchesAlert(item, alert)) continue;
-      const dealId = await upsertDeal(supa, item);
-      if (!dealId) continue;
-      const inserted = await insertMatch(supa, alert.user_id, alert.id, dealId);
-      if (inserted) newMatches++;
+    let matched = items.filter((item) => dealMatchesAlert(item, alert));
+
+    // First poll for this alert: everything in the feed is "old news". Keep
+    // only the newest few so the user isn't flooded with backlog matches.
+    if (!alert.last_polled_at && matched.length > FIRST_POLL_MAX_MATCHES) {
+      matched = [...matched]
+        .sort((a, b) => (b.pubAt?.getTime() ?? 0) - (a.pubAt?.getTime() ?? 0))
+        .slice(0, FIRST_POLL_MAX_MATCHES);
     }
+
+    const newMatches = await upsertDealsAndMatches(supa, alert, matched);
 
     await supa.from("alerts").update({
       last_polled_at: new Date().toISOString(),
@@ -285,42 +298,125 @@ function dealMatchesAlert(deal: DealItem, filters: {
 // DB writes
 // ---------------------------------------------------------------------------
 
-async function upsertDeal(supa: SupabaseClient, item: DealItem): Promise<number | null> {
-  const { data, error } = await supa
-    .from("deals")
-    .upsert(
-      {
-        slickdeals_id: item.slickdealsId,
-        title: item.title,
-        url: item.url,
-        price: item.price,
-        store: item.store,
-        thumbnail_url: item.thumbnailUrl,
-        thumb_score: item.thumbScore,
-        merchant: item.merchant,
-        merchant_domain: item.merchantDomain,
-        rss_pub_at: item.pubAt?.toISOString() ?? null,
-        raw: item.raw,
-      },
-      { onConflict: "slickdeals_id", ignoreDuplicates: false },
-    )
-    .select("id")
-    .single();
-  if (error) return null;
-  return (data as { id: number } | null)?.id ?? null;
+function dealRow(item: DealItem) {
+  return {
+    slickdeals_id: item.slickdealsId,
+    title: item.title,
+    url: item.url,
+    price: item.price,
+    store: item.store,
+    thumbnail_url: item.thumbnailUrl,
+    thumb_score: item.thumbScore,
+    merchant: item.merchant,
+    merchant_domain: item.merchantDomain,
+    rss_pub_at: item.pubAt?.toISOString() ?? null,
+    raw: item.raw,
+  };
 }
 
-async function insertMatch(
-  supa: SupabaseClient, userId: string, alertId: string, dealId: number,
-): Promise<boolean> {
-  const { error } = await supa
-    .from("alert_matches")
-    .insert({ user_id: userId, alert_id: alertId, deal_id: dealId });
-  if (error) {
-    // Unique violation = already matched; expected on re-poll.
-    return false;
+// Persist a feed's matching items in three batched round-trips instead of one
+// request per item: (1) look up which deals we already know, (2) insert only
+// the genuinely new ones as a single array upsert, (3) insert matches as a
+// single array insert that skips already-matched pairs. Existing deals are
+// deliberately NOT re-upserted on every poll — vote scores are kept fresh by
+// the refresh-scores function, and re-sending unchanged rows every tick was
+// the main source of PostgREST egress.
+async function upsertDealsAndMatches(
+  supa: SupabaseClient, alert: AlertRow, items: DealItem[],
+): Promise<number> {
+  if (items.length === 0) return 0;
+
+  // The same guid can repeat within a feed; keep the first occurrence.
+  const bySdId = new Map<string, DealItem>();
+  for (const item of items) {
+    if (!bySdId.has(item.slickdealsId)) bySdId.set(item.slickdealsId, item);
   }
-  return true;
+
+  const { data: existing, error: lookupErr } = await supa
+    .from("deals")
+    .select("id, slickdeals_id, title, url, price, thumbnail_url")
+    .in("slickdeals_id", [...bySdId.keys()]);
+  // A failed read means the DB itself is unhealthy (no bad-row to isolate),
+  // so throw and let pollOne's backoff handle it; the matches insert is
+  // idempotent and the next tick retries everything.
+  if (lookupErr) throw new Error(`deals lookup failed: ${lookupErr.message}`);
+
+  type ExistingRow = {
+    id: number;
+    slickdeals_id: string;
+    title: string;
+    url: string;
+    price: number | null;
+    thumbnail_url: string | null;
+  };
+  const existingBySdId = new Map<string, ExistingRow>(
+    ((existing ?? []) as ExistingRow[]).map((r) => [r.slickdeals_id, r]),
+  );
+  const dealIdBySdId = new Map<string, number>(
+    [...existingBySdId].map(([sdId, r]) => [sdId, r.id]),
+  );
+
+  // Write brand-new deals, plus existing deals whose user-visible fields
+  // were edited on Slickdeals (title/url/price/thumbnail). Vote scores are
+  // deliberately NOT part of the change check — they move on every fetch
+  // and refresh-scores owns them — so steady-state writes stay at zero.
+  const newItems = [...bySdId.values()].filter((it) => {
+    const ex = existingBySdId.get(it.slickdealsId);
+    if (!ex) return true;
+    return ex.title !== it.title || ex.url !== it.url ||
+      ex.price !== it.price || ex.thumbnail_url !== it.thumbnailUrl;
+  });
+  if (newItems.length > 0) {
+    // upsert (not insert) so a concurrent worker racing on the same deal
+    // doesn't error; onConflict resolves to the existing row's id.
+    const { data: inserted, error: insertErr } = await supa
+      .from("deals")
+      .upsert(newItems.map(dealRow), { onConflict: "slickdeals_id", ignoreDuplicates: false })
+      .select("id, slickdeals_id");
+    if (insertErr) {
+      // The batch failed — likely one poisoned row (e.g. an oversized raw
+      // payload). Fall back to per-item upserts so a single bad item can't
+      // block every other new deal for as long as it stays in the feed.
+      // This path only runs on errors, so it doesn't affect normal egress.
+      for (const it of newItems) {
+        const { data: one } = await supa
+          .from("deals")
+          .upsert(dealRow(it), { onConflict: "slickdeals_id", ignoreDuplicates: false })
+          .select("id, slickdeals_id")
+          .single();
+        if (one) dealIdBySdId.set((one as { slickdeals_id: string }).slickdeals_id, (one as { id: number }).id);
+      }
+    } else {
+      for (const r of (inserted ?? []) as { id: number; slickdeals_id: string }[]) {
+        dealIdBySdId.set(r.slickdeals_id, r.id);
+      }
+    }
+  }
+
+  const matchRows = [...bySdId.keys()]
+    .map((sdId) => dealIdBySdId.get(sdId))
+    .filter((id): id is number => id != null)
+    .map((dealId) => ({ user_id: alert.user_id, alert_id: alert.id, deal_id: dealId }));
+  if (matchRows.length === 0) return 0;
+
+  // ignoreDuplicates:true → ON CONFLICT DO NOTHING on unique(alert_id, deal_id);
+  // the response contains only the rows actually inserted, so its length is
+  // the new-match count and the notify trigger fires only for those.
+  const { data: insertedMatches, error: matchErr } = await supa
+    .from("alert_matches")
+    .upsert(matchRows, { onConflict: "alert_id,deal_id", ignoreDuplicates: true })
+    .select("id");
+  if (matchErr) {
+    // Same bad-row isolation as the deals upsert: persist what we can
+    // one-by-one rather than dropping every match in this batch.
+    let count = 0;
+    for (const row of matchRows) {
+      const { error } = await supa.from("alert_matches").insert(row);
+      if (!error) count++; // unique violation = already matched; expected
+    }
+    return count;
+  }
+  return (insertedMatches ?? []).length;
 }
 
 function isServiceRole(jwt: string): boolean {

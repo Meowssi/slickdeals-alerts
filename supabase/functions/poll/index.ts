@@ -204,11 +204,22 @@ function parseRss(xml: string): DealItem[] {
   return arr.map(rssItemToDeal).filter((d): d is DealItem => d !== null);
 }
 
+// RSS <link> values are untrusted input — only persist real web URLs so a
+// malformed or javascript:/data: link can never reach the dashboard's
+// open-in-new-tab paths.
+function isHttpUrl(url: string): boolean {
+  try {
+    return ["http:", "https:"].includes(new URL(url).protocol);
+  } catch {
+    return false;
+  }
+}
+
 // deno-lint-ignore no-explicit-any
 function rssItemToDeal(item: any): DealItem | null {
   const title = (item.title as string | undefined)?.trim();
   const link = (item.link as string | undefined)?.trim();
-  if (!title || !link) return null;
+  if (!title || !link || !isHttpUrl(link)) return null;
 
   const guid = typeof item.guid === "string" ? item.guid : item.guid?.["#text"];
   const slickdealsId = (typeof guid === "string" && guid.trim()) || link;

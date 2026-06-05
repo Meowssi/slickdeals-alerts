@@ -123,6 +123,25 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     }
   }, []);
 
+  // Mark a deal read without visiting the detail page — the direct Slickdeals
+  // button skips /deal/[id] (which is where read_at normally gets stamped), so
+  // stamp it here. Optimistic local update first, then the same deal_state
+  // upsert the detail page performs.
+  const markRead = useCallback(async (dealId: number) => {
+    const now = new Date().toISOString();
+    setRows((prev) =>
+      prev.map((r) => (r.deal_id === dealId && !r.read_at ? { ...r, read_at: now } : r)),
+    );
+    try {
+      const supa = supabaseBrowser();
+      const { data: { user } } = await supa.auth.getUser();
+      if (!user) return;
+      await supa.from("deal_state").upsert({ deal_id: dealId, user_id: user.id, read_at: now });
+    } catch {
+      // Best-effort: the row stays visually read for this session either way.
+    }
+  }, []);
+
   const refreshOne = useCallback(async (dealId: number) => {
     setRefreshing((prev) => new Set(prev).add(dealId));
     try {
@@ -198,12 +217,15 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
 
           setRows((prev) => {
             if (prev.some((existing) => existing.match_id === row.match_id)) return prev;
-            // Insert in sort order (rss_pub_at desc, matched_at desc tiebreaker).
+            // Insert in default sort order (matched_at desc, rss_pub_at desc
+            // tiebreaker) — a fresh match goes to the top even if the deal
+            // itself was posted days ago.
             const next = [...prev, row].sort((a, b) => {
+              const mt = new Date(b.matched_at).getTime() - new Date(a.matched_at).getTime();
+              if (mt !== 0) return mt;
               const at = a.rss_pub_at ? new Date(a.rss_pub_at).getTime() : 0;
               const bt = b.rss_pub_at ? new Date(b.rss_pub_at).getTime() : 0;
-              if (bt !== at) return bt - at;
-              return new Date(b.matched_at).getTime() - new Date(a.matched_at).getTime();
+              return bt - at;
             });
             return next;
           });
@@ -243,11 +265,18 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     );
   });
 
-  // Sort: by votes when requested, else newest-first (the default the server
-  // already applied).
+  // Sort: by votes or post date when requested, else newest-match-first (the
+  // default the server already applied).
   if (sort === "votes_desc" || sort === "votes_asc") {
     const dir = sort === "votes_desc" ? -1 : 1;
     visibleRows.sort((a, b) => dir * ((a.thumb_score ?? -Infinity) - (b.thumb_score ?? -Infinity)));
+  } else if (sort === "posted_desc") {
+    visibleRows.sort((a, b) => {
+      const at = a.rss_pub_at ? new Date(a.rss_pub_at).getTime() : 0;
+      const bt = b.rss_pub_at ? new Date(b.rss_pub_at).getTime() : 0;
+      if (bt !== at) return bt - at;
+      return new Date(b.matched_at).getTime() - new Date(a.matched_at).getTime();
+    });
   }
 
   const filtersActive = minVotes != null || days != null || !!sort || !!needle;
@@ -415,7 +444,8 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
           aria-label="Sort by"
           className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
-          <option value="">Newest</option>
+          <option value="">Newest by Match</option>
+          <option value="posted_desc">Newest by Post</option>
           <option value="votes_desc">Most votes</option>
           <option value="votes_asc">Fewest votes</option>
         </select>
@@ -451,6 +481,11 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
                 refreshing={refreshing.has(r.deal_id)}
                 onClick={(e) => { cancelOnSameTabNav(e); dropHighlight(r.match_id); }}
                 onRefresh={() => refreshOne(r.deal_id)}
+                onOpenSlickdeals={() => {
+                  window.open(r.url, "_blank", "noopener,noreferrer");
+                  dropHighlight(r.match_id);
+                  if (!r.read_at) markRead(r.deal_id);
+                }}
               />
             </li>
           ))}
@@ -524,12 +559,14 @@ function FeedItem({
   refreshing,
   onClick,
   onRefresh,
+  onOpenSlickdeals,
 }: {
   row: FeedRow;
   isNew: boolean;
   refreshing: boolean;
   onClick: MouseEventHandler<HTMLAnchorElement>;
   onRefresh: () => void;
+  onOpenSlickdeals: () => void;
 }) {
   const unread = !row.read_at;
   return (
@@ -595,7 +632,7 @@ function FeedItem({
           <div className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1 truncate">
             <span className="truncate">{row.alert_name}</span>
             <span className="mx-1.5">·</span>
-            <span>{humanAgo(row.rss_pub_at)}</span>
+            <span>posted {humanAgo(row.rss_pub_at)}</span>
             <span className="hidden sm:inline mx-1.5">·</span>
             <span className="hidden sm:inline">matched {humanAgo(row.matched_at)}</span>
             {row.last_score_refresh_at && (
@@ -607,6 +644,26 @@ function FeedItem({
               </>
             )}
           </div>
+        </div>
+        {/* Direct path to the Slickdeals thread — skips the /deal/[id] detour
+            so feed → purchase is one click. A button (not an <a>) because the
+            whole card is already a Link and anchors can't nest. */}
+        <div className="flex items-center shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenSlickdeals();
+            }}
+            title="Open the Slickdeals thread in a new tab"
+            className="inline-flex items-center gap-1 rounded-md border border-neutral-200 dark:border-neutral-700 px-2 py-1.5 text-xs text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 whitespace-nowrap"
+          >
+            <span className="hidden sm:inline">Slickdeals</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </button>
         </div>
       </article>
     </Link>

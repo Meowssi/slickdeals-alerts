@@ -70,10 +70,13 @@ export default async function FeedPage({
       read_at: state?.read_at ?? null,
     };
   }).sort((a: FeedRow, b: FeedRow) => {
+    // Default order: newest match first. A deal posted days ago that an alert
+    // only just matched should surface at the top, not sink by post date.
+    const mt = new Date(b.matched_at).getTime() - new Date(a.matched_at).getTime();
+    if (mt !== 0) return mt;
     const at = a.rss_pub_at ? new Date(a.rss_pub_at).getTime() : 0;
     const bt = b.rss_pub_at ? new Date(b.rss_pub_at).getTime() : 0;
-    if (bt !== at) return bt - at;
-    return new Date(b.matched_at).getTime() - new Date(a.matched_at).getTime();
+    return bt - at;
   });
 
   return (

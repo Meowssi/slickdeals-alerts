@@ -482,7 +482,6 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
                 onClick={(e) => { cancelOnSameTabNav(e); dropHighlight(r.match_id); }}
                 onRefresh={() => refreshOne(r.deal_id)}
                 onOpenSlickdeals={() => {
-                  window.open(r.url, "_blank", "noopener,noreferrer");
                   dropHighlight(r.match_id);
                   if (!r.read_at) markRead(r.deal_id);
                 }}
@@ -527,6 +526,18 @@ function AlertChip({ label, href, active, onClick }: { label: string; href: stri
   );
 }
 
+// deals.url originates from RSS ingestion (untrusted <link> values). Ingestion
+// now rejects non-http(s) links, but rows persisted before that check — or a
+// compromised feed — shouldn't become a javascript:/data: navigation here.
+function safeHttpUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function merchantLabel(row: FeedRow): string | null {
   if (row.merchant_domain) return row.merchant_domain;
   if (row.merchant) {
@@ -569,93 +580,97 @@ function FeedItem({
   onOpenSlickdeals: () => void;
 }) {
   const unread = !row.read_at;
+  const slickdealsHref = safeHttpUrl(row.url);
   return (
-    <Link href={`/deal/${row.deal_id}`} onClick={onClick} className="block">
-      <article
-        className={
-          "card p-3 sm:p-4 flex gap-3 sm:gap-4 hover:shadow-md transition " +
-          (unread ? "border-l-4 border-l-brand-500 " : "") +
-          (isNew ? "feed-row-new" : "")
-        }
-      >
-        {row.thumbnail_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={row.thumbnail_url}
-            alt=""
-            className="w-16 h-16 sm:w-24 sm:h-24 shrink-0 object-contain rounded bg-neutral-100 dark:bg-neutral-800"
-          />
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2 flex-wrap">
-            {row.price != null && (
-              <span className="text-base sm:text-lg font-semibold text-brand-600 dark:text-brand-400">
-                {formatPrice(row.price)}
-              </span>
-            )}
-            {merchantLabel(row) && (
-              <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 truncate">
-                @ {merchantLabel(row)}
-              </span>
-            )}
-            {row.thumb_score != null && (
-              <span
-                className={
-                  "text-[11px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap " +
-                  (row.thumb_score >= 0
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
-                    : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200")
-                }
-                title="Slickdeals community thumb score"
-              >
-                {row.thumb_score >= 0 ? `👍 +${row.thumb_score}` : `👎 ${row.thumb_score}`}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!refreshing) onRefresh();
-              }}
-              disabled={refreshing}
-              title="Refresh this deal's vote score"
-              aria-label="Refresh vote score"
-              className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-50"
+    <article
+      className={
+        "card relative p-3 sm:p-4 flex gap-3 sm:gap-4 hover:shadow-md transition " +
+        (unread ? "border-l-4 border-l-brand-500 " : "") +
+        (isNew ? "feed-row-new" : "")
+      }
+    >
+      {/* Stretched link: the whole card still navigates to /deal/[id], but as
+          an absolutely-positioned sibling overlay rather than a wrapper, so
+          the refresh/Slickdeals controls below aren't interactive content
+          nested inside an anchor. Controls sit above it via relative z-10. */}
+      <Link href={`/deal/${row.deal_id}`} onClick={onClick} aria-label={row.title} className="absolute inset-0" />
+      {row.thumbnail_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={row.thumbnail_url}
+          alt=""
+          className="w-16 h-16 sm:w-24 sm:h-24 shrink-0 object-contain rounded bg-neutral-100 dark:bg-neutral-800"
+        />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          {row.price != null && (
+            <span className="text-base sm:text-lg font-semibold text-brand-600 dark:text-brand-400">
+              {formatPrice(row.price)}
+            </span>
+          )}
+          {merchantLabel(row) && (
+            <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 truncate">
+              @ {merchantLabel(row)}
+            </span>
+          )}
+          {row.thumb_score != null && (
+            <span
+              className={
+                "text-[11px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap " +
+                (row.thumb_score >= 0
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                  : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200")
+              }
+              title="Slickdeals community thumb score"
             >
-              <RefreshIcon spinning={refreshing} />
-            </button>
-            {row.saved && <span className="ml-auto text-xs text-amber-600 dark:text-amber-400">★ saved</span>}
-            {isNew && <span className="ml-auto text-xs font-semibold text-yellow-700 dark:text-yellow-400">NEW</span>}
-          </div>
-          <h3 className="font-medium text-sm sm:text-base line-clamp-2 sm:truncate leading-snug mt-0.5">{row.title}</h3>
-          <div className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1 truncate">
-            <span className="truncate">{row.alert_name}</span>
-            <span className="mx-1.5">·</span>
-            <span>posted {humanAgo(row.rss_pub_at)}</span>
-            <span className="hidden sm:inline mx-1.5">·</span>
-            <span className="hidden sm:inline">matched {humanAgo(row.matched_at)}</span>
-            {row.last_score_refresh_at && (
-              <>
-                <span className="hidden sm:inline mx-1.5">·</span>
-                <span className="hidden sm:inline" title="Votes last fetched from Slickdeals">
-                  votes fetched {humanAgo(row.last_score_refresh_at)}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-        {/* Direct path to the Slickdeals thread — skips the /deal/[id] detour
-            so feed → purchase is one click. A button (not an <a>) because the
-            whole card is already a Link and anchors can't nest. */}
-        <div className="flex items-center shrink-0">
+              {row.thumb_score >= 0 ? `👍 +${row.thumb_score}` : `👎 ${row.thumb_score}`}
+            </span>
+          )}
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onOpenSlickdeals();
+            onClick={() => {
+              if (!refreshing) onRefresh();
             }}
+            disabled={refreshing}
+            title="Refresh this deal's vote score"
+            aria-label="Refresh vote score"
+            className="relative z-10 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-50"
+          >
+            <RefreshIcon spinning={refreshing} />
+          </button>
+          {row.saved && <span className="ml-auto text-xs text-amber-600 dark:text-amber-400">★ saved</span>}
+          {isNew && <span className="ml-auto text-xs font-semibold text-yellow-700 dark:text-yellow-400">NEW</span>}
+        </div>
+        <h3 className="font-medium text-sm sm:text-base line-clamp-2 sm:truncate leading-snug mt-0.5">{row.title}</h3>
+        <div className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-1 truncate">
+          <span className="truncate">{row.alert_name}</span>
+          <span className="mx-1.5">·</span>
+          <span>posted {humanAgo(row.rss_pub_at)}</span>
+          <span className="hidden sm:inline mx-1.5">·</span>
+          <span className="hidden sm:inline">matched {humanAgo(row.matched_at)}</span>
+          {row.last_score_refresh_at && (
+            <>
+              <span className="hidden sm:inline mx-1.5">·</span>
+              <span className="hidden sm:inline" title="Votes last fetched from Slickdeals">
+                votes fetched {humanAgo(row.last_score_refresh_at)}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+      {/* Direct path to the Slickdeals thread — skips the /deal/[id] detour
+          so feed → purchase is one click. A real anchor (middle/ctrl-click
+          friendly), valid now that the card link is a sibling overlay instead
+          of a wrapper. Only rendered when the stored URL is a real http(s)
+          link — see safeHttpUrl. */}
+      {slickdealsHref && (
+        <div className="relative z-10 flex items-center shrink-0">
+          <a
+            href={slickdealsHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onOpenSlickdeals}
             title="Open the Slickdeals thread in a new tab"
             className="inline-flex items-center gap-1 rounded-md border border-neutral-200 dark:border-neutral-700 px-2 py-1.5 text-xs text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 whitespace-nowrap"
           >
@@ -663,9 +678,9 @@ function FeedItem({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
-          </button>
+          </a>
         </div>
-      </article>
-    </Link>
+      )}
+    </article>
   );
 }

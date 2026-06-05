@@ -126,7 +126,10 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
   // Mark a deal read without visiting the detail page — the direct Slickdeals
   // button skips /deal/[id] (which is where read_at normally gets stamped), so
   // stamp it here. Optimistic local update first, then the same deal_state
-  // upsert the detail page performs.
+  // upsert the detail page performs. Supabase reports failures as returned
+  // { error } values rather than exceptions, so check them explicitly — on
+  // any failure, roll the optimistic flag back so the UI doesn't show "read"
+  // for a row that will resurrect as unread on the next load.
   const markRead = useCallback(async (dealId: number) => {
     const now = new Date().toISOString();
     setRows((prev) =>
@@ -134,11 +137,17 @@ export function FeedClient({ initialRows, alerts, filter, alertFilter, searchQue
     );
     try {
       const supa = supabaseBrowser();
-      const { data: { user } } = await supa.auth.getUser();
-      if (!user) return;
-      await supa.from("deal_state").upsert({ deal_id: dealId, user_id: user.id, read_at: now });
-    } catch {
-      // Best-effort: the row stays visually read for this session either way.
+      const { data: { user }, error: userError } = await supa.auth.getUser();
+      if (userError || !user) throw userError ?? new Error("no authenticated user");
+      const { error } = await supa
+        .from("deal_state")
+        .upsert({ deal_id: dealId, user_id: user.id, read_at: now });
+      if (error) throw error;
+    } catch (err) {
+      console.warn("Failed to persist read state for deal", dealId, err);
+      setRows((prev) =>
+        prev.map((r) => (r.deal_id === dealId && r.read_at === now ? { ...r, read_at: null } : r)),
+      );
     }
   }, []);
 

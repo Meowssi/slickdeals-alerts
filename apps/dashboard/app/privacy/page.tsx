@@ -28,7 +28,7 @@ export default async function PrivacyPage() {
           <li>Phone number you optionally register as a notification recipient</li>
           <li>RSS feed URLs you configure as alerts</li>
           <li>Records of deals matched against your alerts</li>
-          <li>Channel credentials you paste in (Twilio SID/token, etc.) — encrypted at rest in our database</li>
+          <li>Channel credentials you paste in (API keys, etc.) — encrypted at rest in our database</li>
         </ul>
 
         <h2 className="font-semibold text-base pt-2">How we use it</h2>
@@ -54,7 +54,7 @@ export default async function PrivacyPage() {
 
         <h2 className="font-semibold text-base pt-2">Third-party services</h2>
         <p>
-          To deliver notifications, we route messages through providers you configure (Twilio for SMS, Telegram for chat, Resend for email, etc.).
+          To deliver notifications, we route messages through providers you configure (Telnyx for SMS, Telegram for chat, Resend for email, etc.).
           Each is subject to its own privacy policy. We do not sell or share your data with anyone else.
         </p>
 

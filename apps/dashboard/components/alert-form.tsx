@@ -30,13 +30,11 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
   const [errMsg, setErrMsg] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
 
-  // True when this alert will route to an SMS channel (Twilio) — used to warn
-  // about MMS cost when include_images is on.
-  const targetsTwilio = (() => {
+  const targetsTelnyx = (() => {
     const targeted = channelIds.length > 0
       ? channels.filter((c) => channelIds.includes(c.id))
       : channels;
-    return targeted.some((c) => c.type === "sms_twilio");
+    return targeted.some((c) => c.type === "sms_telnyx");
   })();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -192,11 +190,9 @@ export function AlertForm({ initial = {}, channels }: AlertFormProps) {
               </span>
             </span>
           </label>
-          {includeImages && targetsTwilio && (
+          {includeImages && targetsTelnyx && (
             <div className="mt-2 ml-6 rounded-md bg-amber-50 border border-amber-200 p-2 text-xs text-amber-900">
-              <strong>⚠️ Note for SMS:</strong> With images on, each Twilio message becomes an MMS — that&apos;s about{" "}
-              <strong>$0.02 per text</strong> instead of $0.008 (2.5× more). If you want cheap SMS, uncheck this
-              or only route this alert to non-SMS channels above.
+              <strong>Note for SMS:</strong> With images on, each message becomes an MMS and costs more than a plain SMS. Uncheck this or route the alert to non-SMS channels if you want to minimize cost.
             </div>
           )}
         </div>

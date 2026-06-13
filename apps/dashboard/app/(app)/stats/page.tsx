@@ -105,10 +105,8 @@ export default async function StatsPage() {
     }))
     .sort((a, b) => (b.sent + b.errors) - (a.sent + a.errors));
 
-  // Twilio cost tracker (if a Twilio channel exists)
-  const hasTwilio = (channels as ChannelRow[] | null ?? []).some((c) => c.type === "sms_twilio");
-  const twilio30dCount = (notifs30d as Notif[] | null ?? []).filter((n) => n.channel_type === "sms_twilio" && n.ok).length;
-  const twilioMonthlyEst = (twilio30dCount * 0.0083).toFixed(2);
+  const hasTelnyx = (channels as ChannelRow[] | null ?? []).some((c) => c.type === "sms_telnyx");
+  const telnyx30dCount = (notifs30d as Notif[] | null ?? []).filter((n) => n.channel_type === "sms_telnyx" && n.ok).length;
 
   return (
     <div className="space-y-6">
@@ -189,12 +187,11 @@ export default async function StatsPage() {
         )}
       </Card>
 
-      {hasTwilio && (
-        <Card title="Twilio cost (estimated)" subtitle="~$0.0083 per US SMS. MMS roughly 2.5× that.">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <Stat label="SMS sent (30d)" value={String(twilio30dCount)} />
-            <Stat label="Estimated spend" value={`$${twilioMonthlyEst}`} />
-            <Stat label="Prefund target" value="$20" help="Top up when balance drops below $5" />
+      {hasTelnyx && (
+        <Card title="Telnyx SMS (30 days)" subtitle="Check your Telnyx billing dashboard for exact costs.">
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="SMS sent (30d)" value={String(telnyx30dCount)} />
+            <Stat label="Est. spend" value={`~$${(telnyx30dCount * 0.005).toFixed(2)}`} help="~$0.005/SMS estimate. Verify in Telnyx billing." />
           </div>
         </Card>
       )}

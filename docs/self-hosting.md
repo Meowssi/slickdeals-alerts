@@ -45,7 +45,7 @@ These are optional but recommended.
 - [Phase 2 — Fork & GitHub secrets](#phase-2--fork--github-secrets)
 - [Phase 3 — Notification channels](#phase-3--notification-channels)
   - [Telegram](#telegram-recommended) (recommended)
-  - [SMS via Twilio](#sms-via-twilio)
+  - [SMS via Telnyx](#sms-via-telnyx)
   - [Pushover](#pushover)
   - [ntfy.sh](#ntfysh)
   - [Discord](#discord)
@@ -76,7 +76,7 @@ Just accounts. No software to install (`curl` is built into Windows 10+, macOS, 
 | **[Telegram](https://telegram.org)** | (Most popular channel) | Always free |
 
 Optional channels — sign up only for the ones you want:
-[Twilio](https://www.twilio.com) (SMS), [Pushover](https://pushover.net) ($5 one-time), [Resend](https://resend.com) (email).
+[Telnyx](https://telnyx.com) (SMS), [Pushover](https://pushover.net) ($5 one-time), [Resend](https://resend.com) (email).
 
 ---
 
@@ -228,50 +228,55 @@ curl "https://api.telegram.org/bot${TOKEN}/getWebhookInfo"
 
 → should show your URL.
 
-### SMS via Twilio
+### SMS via Telnyx
 
-Reliable, paid (~$0.008/msg).
+Reliable, paid (~$0.005/msg). No prepaid balance required — Telnyx bills your card monthly for actual usage.
 
-1. Sign up at [twilio.com](https://www.twilio.com). Free trial gives credit + a test number.
-2. From the Twilio console **Account Dashboard**, note: **Account SID**, **Auth Token**, and the **trial phone number** (E.164 format like `+15551234567`).
-3. *Trial accounts can only SMS verified numbers.* Verify your phone in Twilio → **Phone Numbers → Verified Caller IDs**.
+**Costs:** $4.50 one-time brand registration + $15 one-time campaign registration + $1.50/month A2P fee + ~$1/month per phone number. All-in: ~$22 to get started, then ~$2.50/month.
 
-In Supabase function secrets:
+The setup wizard in the dashboard (`/settings` → Add channel → SMS via Telnyx) walks you through every step. The short version:
 
-| Name | Value |
+1. Sign up at [telnyx.com](https://telnyx.com) and add a credit card to activate.
+2. **Mission Control → Numbers → Buy numbers** — buy a US number with SMS + MMS capability (~$1/month).
+3. **Mission Control → API Keys → Create API Key** — copy the key (starts with `KEY`), it won't be shown again.
+4. **Mission Control → Compliance → 10DLC → Brand Registrations → Create Brand** — Sole Proprietor, $4.50 one-time. Approves in minutes.
+5. **Mission Control → Compliance → 10DLC → Campaigns → Create Campaign** — $15 one-time + $1.50/month.
+
+The credentials stored per-user in the database (no global secrets needed):
+
+| Field | Where to find it |
 |---|---|
-| `TWILIO_ACCOUNT_SID` | `AC...` |
-| `TWILIO_AUTH_TOKEN` | from Twilio |
-| `TWILIO_FROM_NUMBER` | `+15551234567` |
+| API key | Mission Control → API Keys |
+| From number | The number you bought, in E.164 format (`+14155550123`) |
+| Your phone | Your personal number that will receive alerts |
 
 #### A2P 10DLC campaign registration (required for US numbers)
 
-US carriers require every app-to-person SMS sender to register a **brand** and a **campaign** (A2P 10DLC) through Twilio. Until the campaign is **approved**, texts to US numbers are filtered or blocked. For a personal deployment, register a **Sole Proprietor** brand — no EIN or business entity needed, lowest cost, and it fits the "alerts to my own phone" use case.
+US carriers require every app-to-person SMS sender to register a **brand** and a **campaign**. Until the campaign is **approved**, texts to US numbers are filtered or blocked. Register a **Sole Proprietor** brand — no EIN or business entity needed, lowest cost, fits "alerts to my own phone."
 
-> ⚠️ **Before you submit, open `https://<your-domain>/sms-opt-in` in a logged-out (incognito) browser** and confirm it loads the consent form **without bouncing you to a login page**. That URL is your **Call-to-Action (CTA)** — the reviewer visits it to verify how people opt in. A blank or erroring page is rejected with **Error 30909 (CTA could not be verified)**, the single most common A2P rejection. This dashboard ships `/sms-opt-in`, `/privacy`, and `/terms` for exactly this purpose and keeps all three on the auth middleware's public allowlist (`lib/supabase/middleware.ts`) so they load without signing in — confirm all three open while logged out on *your* domain first.
+> ⚠️ **Before submitting the campaign, open `https://<your-domain>/sms-opt-in` in a logged-out (incognito) browser** and confirm it loads without bouncing to a login page. The reviewer visits this URL to verify opt-in consent. A blank or erroring page gets rejected. This dashboard ships `/sms-opt-in`, `/privacy`, and `/terms` on the auth middleware's public allowlist — confirm all three open while logged out on your domain first.
 
-Twilio Console → **Messaging → Regulatory Compliance → A2P 10DLC** (older accounts: **Messaging → Compliance**). Suggested field values:
+Suggested campaign field values:
 
 | Field | What to enter |
 |---|---|
+| Use case | Mixed (or Low Volume Mixed) |
 | Campaign description | `Personal Slickdeals deal alerts sent to my own phone via a self-hosted dashboard.` |
 | Sample message 1 | `[Slickdeals Alerts] $9.99 – 50ft Cat6 Cable @ Best Buy. slickdeals.net/f/12345` |
 | Sample message 2 | `[Slickdeals Alerts] $42 – Anker 65W USB-C @ Amazon. slickdeals.net/f/67890` |
-| Message contents | Check **Embedded links** (messages carry `slickdeals.net` links). Leave *phone numbers*, *age-gated*, and *direct lending* unchecked. |
+| Message contents | Check **Embedded links** only |
+| Opt-in type | Web Form |
 | Privacy policy URL | `https://<your-domain>/privacy` |
 | Terms of service URL | `https://<your-domain>/terms` |
-| Opt-in keywords | *Leave blank* — consent is collected on the web form, not via a keyword. |
-| Opt-in / confirmation message | `Slickdeals Alerts: You're now subscribed to deal alerts. Reply HELP for help, STOP to opt out. Msg & data rates may apply.` |
-| Opt-out keywords | `STOP,STOPALL,UNSUBSCRIBE,CANCEL,END,QUIT,OPTOUT,REVOKE` |
-| Opt-out message | `You have been unsubscribed and will receive no further messages. Reply START to resubscribe.` |
-| Help keywords | `HELP,INFO` |
-| Help message | `Slickdeals Alerts: deal notifications for your saved searches. Reply STOP to unsubscribe. Msg & data rates may apply.` |
+| Opt-in message | `Slickdeals Alerts: You're now subscribed to deal alerts. Reply HELP for help, STOP to opt out. Msg & data rates may apply.` |
+| Opt-out message | `Slickdeals Alerts: You have been unsubscribed and will receive no further messages. Reply START to resubscribe.` |
+| Help message | `Slickdeals Alerts: For help, sign into your dashboard at https://<your-domain> or open an issue at github.com/Meowssi/slickdeals-alerts/issues. Reply STOP to unsubscribe. Msg & data rates may apply.` |
 
-**The field that gets flagged (the "CTA"):** there is no field literally labeled "CTA." It maps to the **"How do end-users consent to receive messages?"** box. Paste a description that *names the opt-in URL* so the reviewer can reach it:
+For the opt-in description / CTA field, paste something like:
 
-> End users opt in on the public web form at https://<your-domain>/sms-opt-in. The form requires the user to (1) enter their own mobile number and (2) actively check an unchecked consent checkbox agreeing to receive automated SMS deal alerts about deals matching their saved Slickdeals searches. The page discloses that message frequency varies, that message & data rates may apply, how to reply HELP or STOP, and links to the Terms of Service and Privacy Policy. This is a single-operator, personal-use deployment — the only recipient is the person who deployed and operates the instance. Numbers are never purchased, shared, or sold.
+> End-users opt in via the public web form at https://\<your-domain\>/sms-opt-in. The form requires the user to enter their mobile number, actively check an unchecked consent checkbox, and click submit. The form discloses message frequency, HELP/STOP instructions, and links to the privacy policy and terms of service. This is a personal-use deployment — the only recipient is the person who deployed and operates the instance.
 
-A Sole Proprietor campaign is capped at a low daily message volume (plenty for personal alerts). After approval, point your Twilio number (or Messaging Service) at this campaign so outbound texts send under it.
+After campaign approval, go to **Numbers → your number → Messaging tab** and set the Messaging Profile to the one linked to your campaign. SMS unlocks immediately.
 
 ### Pushover
 

@@ -147,9 +147,9 @@ export default async function AdminSetupPage() {
         <AdminPushoverSetup action={setProjectSecretsAction} />
 
         <section className="card p-5 space-y-1 bg-neutral-50">
-          <h3 className="font-semibold text-sm text-neutral-700">Twilio SMS &amp; Resend Email — per-user</h3>
+          <h3 className="font-semibold text-sm text-neutral-700">SMS (Telnyx) &amp; Resend Email — per-user</h3>
           <p className="text-xs text-neutral-600">
-            These channels were moved to per-user setup. Each user signs up for their own Twilio / Resend
+            These channels are per-user setup. Each user signs up for their own Telnyx / Resend
             account in the user wizard at <code className="bg-white px-1 rounded">/setup</code> — they get
             billed for their own usage, you don&apos;t pay anything. No admin action needed.
           </p>

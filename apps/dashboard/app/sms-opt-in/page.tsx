@@ -4,11 +4,11 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 /**
- * Public reference page satisfying Twilio's A2P 10DLC "Web form opt-in"
- * requirements for campaign registration. Twilio reviewers (and carrier
- * compliance teams) need a publicly-accessible URL showing exactly how
- * end-users opt in to SMS, including the consent checkbox, frequency
- * disclosure, HELP/STOP instructions, and links to Terms + Privacy.
+ * Public reference page satisfying A2P 10DLC "Web form opt-in" requirements
+ * for carrier campaign registration. Carrier/provider reviewers need a
+ * publicly-accessible URL showing exactly how end-users opt in to SMS,
+ * including the consent checkbox, frequency disclosure, HELP/STOP
+ * instructions, and links to Terms + Privacy.
  *
  * The real signup happens in the authenticated /setup wizard. This page
  * is a static mirror of that form's UI for compliance reference — it
@@ -18,8 +18,8 @@ export const dynamic = "force-dynamic";
  * ⚠️  SERVER COMPONENT — do NOT add event handlers (onSubmit/onChange/…)
  * to any element here. Passing a function to a host element in an RSC
  * throws at render time; the page then streams as a blank shell (HTTP
- * 200 with no form), and Twilio rejects the campaign for an unverifiable
- * Call-to-Action (Error 30909). Keep this page 100% static markup.
+ * 200 with no form), causing the campaign to be rejected for an
+ * unverifiable Call-to-Action. Keep this page 100% static markup.
  */
 export default async function SmsOptInPage() {
   const h = await headers();
@@ -98,7 +98,7 @@ export default async function SmsOptInPage() {
         </div>
 
         <details className="text-xs text-neutral-500">
-          <summary className="cursor-pointer">For Twilio reviewers</summary>
+          <summary className="cursor-pointer">For A2P/carrier reviewers</summary>
           <div className="mt-2 space-y-2">
             <p>
               This deployment is a self-hosted instance of{" "}
@@ -111,7 +111,7 @@ export default async function SmsOptInPage() {
               <strong>Opt-in flow:</strong> The end-user (also the deployer of the instance) signs into the dashboard,
               navigates to Settings → Add Channel → SMS, enters their own phone number, checks a consent checkbox,
               receives a 6-digit verification code by SMS, and enters it back into the dashboard to complete double opt-in.
-              The verification code SMS is the first message Twilio sends to confirm the user controls the number.
+              The verification code SMS is the first message the provider sends to confirm the user controls the number.
             </p>
             <p>
               <strong>Audience:</strong> Personal-use only. Recipient is the same individual operating the deployment.

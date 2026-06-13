@@ -255,7 +255,22 @@ function AddChannelModal({
   providerType, onClose, isAdmin,
 }: { providerType: string; onClose: () => void; isAdmin: boolean }) {
   const meta = getProviderMeta(providerType);
-  if (!meta) return null;
+  if (!meta) {
+    return (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+        <div className="card max-w-md w-full p-6 space-y-4">
+          <h2 className="text-lg font-semibold">Unsupported channel type</h2>
+          <p className="text-sm text-neutral-700">
+            The channel type <code className="bg-neutral-100 px-1 rounded">{providerType}</code> is no longer supported.
+            {providerType === "sms_twilio" && " Twilio has been replaced by Telnyx. Delete this channel and add a new SMS channel via Telnyx."}
+          </p>
+          <div className="flex justify-end">
+            <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Per-channel walkthroughs render their own headings; the generic
   // ChannelForm needs a wrapper title.

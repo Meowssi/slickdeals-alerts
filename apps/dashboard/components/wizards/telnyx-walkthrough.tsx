@@ -141,11 +141,12 @@ export function TelnyxWalkthrough({ onDone, onSkip }: { onDone: () => void; onSk
   }
 
   async function confirmCode() {
-    setStep("sending-sms");
-    setErrMsg("");
-    if (!channelId) return;
+    if (!channelId) { setStep("error"); setErrMsg("No channel ID — save credentials first."); return; }
     const supa = supabaseBrowser();
     const { data: { session } } = await supa.auth.getSession();
+    if (!session?.access_token) { setStep("error"); setErrMsg("Session expired — please sign in again."); return; }
+    setStep("sending-sms");
+    setErrMsg("");
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/channel-verify`,

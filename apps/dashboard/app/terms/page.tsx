@@ -30,7 +30,7 @@ export default async function TermsPage() {
         <ul className="list-disc list-inside space-y-1">
           <li>Keep your account credentials private.</li>
           <li>Only register phone numbers and email addresses that you control or have explicit permission to send notifications to.</li>
-          <li>Comply with the terms of any third-party services you connect (Twilio, Telegram, Discord, Pushover, ntfy, Resend, etc.) — including their messaging volume, opt-out, and content policies.</li>
+          <li>Comply with the terms of any third-party services you connect (Telnyx, Telegram, Discord, Pushover, ntfy, Resend, etc.) — including their messaging volume, opt-out, and content policies.</li>
           <li>Don&apos;t use this service to send anything you wouldn&apos;t be willing to receive yourself.</li>
         </ul>
 

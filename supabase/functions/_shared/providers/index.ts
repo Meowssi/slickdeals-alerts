@@ -6,7 +6,7 @@
 import type { Provider } from "./types.ts";
 import { telegramProvider } from "./telegram.ts";
 import { ntfyProvider } from "./ntfy.ts";
-import { smsTwilioProvider } from "./sms_twilio.ts";
+import { smsTelnyxProvider } from "./sms_telnyx.ts";
 import { pushoverProvider } from "./pushover.ts";
 import { discordProvider } from "./discord.ts";
 import { emailProvider } from "./email.ts";
@@ -15,7 +15,7 @@ import { webhookProvider } from "./webhook.ts";
 export const providers: Record<string, Provider> = {
   [telegramProvider.type]:    telegramProvider,
   [ntfyProvider.type]:        ntfyProvider,
-  [smsTwilioProvider.type]:   smsTwilioProvider,
+  [smsTelnyxProvider.type]:   smsTelnyxProvider,
   [pushoverProvider.type]:    pushoverProvider,
   [discordProvider.type]:     discordProvider,
   [emailProvider.type]:       emailProvider,

@@ -65,9 +65,9 @@ export const PROVIDER_CATALOG: ProviderMeta[] = [
     requiresServerSecrets: false,
   },
   {
-    type: "sms_twilio",
-    displayName: "SMS (Twilio)",
-    description: "Text message to your phone. Works without internet. Paid (~$0.008/msg).",
+    type: "sms_telnyx",
+    displayName: "SMS (Telnyx)",
+    description: "Text message to your phone. Works without internet. Paid (~$0.005/msg).",
     setup: {
       instructions:
         "Enter your phone number (E.164 format, e.g. +15551234567). We'll text you a code to confirm.",

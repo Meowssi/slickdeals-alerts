@@ -109,32 +109,29 @@ async function startVerification(
     });
   }
 
-  if (ch.type === "sms_twilio") {
-    const cfg = ch.config as { phone?: string; account_sid?: string; auth_token?: string; from_number?: string };
+  if (ch.type === "sms_telnyx") {
+    const cfg = ch.config as { phone?: string; api_key?: string; from_number?: string };
     const phone = cfg.phone;
-    const sid = cfg.account_sid;
-    const tok = cfg.auth_token;
+    const apiKey = cfg.api_key;
     const from = cfg.from_number;
-    if (!phone || !sid || !tok || !from) {
-      return Response.json({ ok: false, error: "Twilio account_sid, auth_token, from_number, and phone are all required in the channel config" }, { status: 400 });
+    if (!phone || !apiKey || !from) {
+      return Response.json({ ok: false, error: "Telnyx api_key, from_number, and phone are all required in the channel config" }, { status: 400 });
     }
-    const params = new URLSearchParams({
-      To: phone, From: from,
-      Body: `Your Slickdeals Alerts verification code: ${code}`,
-    });
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: "Basic " + btoa(`${sid}:${tok}`),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params.toString(),
+    const res = await fetch("https://api.telnyx.com/v2/messages", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        from,
+        to: phone,
+        text: `Your Slickdeals Alerts verification code: ${code}`,
+      }),
+    });
     if (!res.ok) {
-      return Response.json({ ok: false, error: `twilio ${res.status}` }, { status: 400 });
+      const body = await res.text().catch(() => "");
+      return Response.json({ ok: false, error: `telnyx ${res.status}: ${body.slice(0, 200)}` }, { status: 400 });
     }
     return Response.json({
       ok: true,

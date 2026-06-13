@@ -10,7 +10,7 @@ import { NtfyWalkthrough } from "@/components/wizards/ntfy-walkthrough";
 import { TelegramWalkthrough } from "@/components/wizards/telegram-walkthrough";
 import { DiscordWalkthrough } from "@/components/wizards/discord-walkthrough";
 import { PushoverWalkthrough } from "@/components/wizards/pushover-walkthrough";
-import { TwilioWalkthrough } from "@/components/wizards/twilio-walkthrough";
+import { TelnyxWalkthrough } from "@/components/wizards/telnyx-walkthrough";
 import { ResendEmailWalkthrough } from "@/components/wizards/resend-email-walkthrough";
 
 const TIMEZONE_FALLBACK = [
@@ -160,7 +160,7 @@ export function SettingsClient({
 function summarizeConfig(type: string, cfg: Record<string, unknown>): string {
   if (type === "telegram") return cfg.chat_id ? `chat ${cfg.chat_id}` : "(not linked)";
   if (type === "ntfy") return `topic ${cfg.topic ?? ""}`;
-  if (type === "sms_twilio") return String(cfg.phone ?? "");
+  if (type === "sms_telnyx") return String(cfg.phone ?? "");
   if (type === "pushover") return `user_key ****${String(cfg.user_key ?? "").slice(-4)}`;
   if (type === "discord") return "webhook configured";
   if (type === "email") return String(cfg.address ?? "");
@@ -264,7 +264,7 @@ function AddChannelModal({
     providerType === "telegram" ||
     providerType === "discord" ||
     providerType === "pushover" ||
-    providerType === "sms_twilio" ||
+    providerType === "sms_telnyx" ||
     providerType === "email";
 
   return (
@@ -290,7 +290,7 @@ function AddChannelModal({
         {providerType === "telegram"  && <TelegramWalkthrough onDone={onClose} onSkip={onClose} isAdmin={isAdmin} />}
         {providerType === "discord"   && <DiscordWalkthrough  onDone={onClose} onSkip={onClose} />}
         {providerType === "pushover"  && <PushoverWalkthrough onDone={onClose} onSkip={onClose} isAdmin={isAdmin} />}
-        {providerType === "sms_twilio"&& <TwilioWalkthrough   onDone={onClose} onSkip={onClose} />}
+        {providerType === "sms_telnyx"&& <TelnyxWalkthrough   onDone={onClose} onSkip={onClose} />}
         {providerType === "email"     && <ResendEmailWalkthrough onDone={onClose} onSkip={onClose} />}
         {!hasOwnHeader && <ChannelForm meta={meta} onDone={onClose} onCancel={onClose} />}
       </div>

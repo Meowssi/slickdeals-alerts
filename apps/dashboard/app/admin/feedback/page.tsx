@@ -27,29 +27,35 @@ type StatusFilter = typeof STATUS_FILTERS[number];
 export default async function AdminFeedbackPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
   const sp = await searchParams;
   const filter: StatusFilter = (STATUS_FILTERS as readonly string[]).includes(sp.status ?? "")
     ? (sp.status as StatusFilter)
     : "open";
+  const search = (sp.q ?? "").trim();
+  const normalizedSearch = search.toLocaleLowerCase();
 
   const supa = supabaseAdmin();
-  let query = supa
+  const { data: allRows } = await supa
     .from("feedback")
     .select("id, user_email, category, subject, message, status, admin_response, created_at, updated_at")
     .order("created_at", { ascending: false });
-  if (filter !== "all") query = query.eq("status", filter);
-  const { data: rows } = await query;
-
-  // counts for tabs
-  const { data: allRows } = await supa.from("feedback").select("status");
+  const feedbackRows = (allRows ?? []) as FeedbackRow[];
   const counts = {
-    all:         (allRows ?? []).length,
-    open:        (allRows ?? []).filter((r) => r.status === "open").length,
-    in_progress: (allRows ?? []).filter((r) => r.status === "in_progress").length,
-    resolved:    (allRows ?? []).filter((r) => r.status === "resolved").length,
+    all:         feedbackRows.length,
+    open:        feedbackRows.filter((r) => r.status === "open").length,
+    in_progress: feedbackRows.filter((r) => r.status === "in_progress").length,
+    resolved:    feedbackRows.filter((r) => r.status === "resolved").length,
   };
+  const rows = feedbackRows.filter((r) => {
+    if (filter !== "all" && r.status !== filter) return false;
+    if (!normalizedSearch) return true;
+    return [r.user_email, r.category, r.subject, r.message]
+      .join(" ")
+      .toLocaleLowerCase()
+      .includes(normalizedSearch);
+  });
 
   return (
     <div className="space-y-6">
@@ -68,31 +74,60 @@ export default async function AdminFeedbackPage({
         </Link>
       </header>
 
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="status" value={filter} />
+        <label htmlFor="feedback-search" className="sr-only">Search feedback</label>
+        <input
+          id="feedback-search"
+          type="search"
+          name="q"
+          defaultValue={search}
+          placeholder="Search subject, message, email…"
+          className="min-w-[16rem] flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+        />
+        <button
+          type="submit"
+          className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+        >
+          Search
+        </button>
+        {search && (
+          <Link href={`/admin/feedback?status=${filter}`} className="text-sm text-neutral-500 hover:text-neutral-900">
+            Clear
+          </Link>
+        )}
+      </form>
+
       <nav className="flex flex-wrap gap-1 border-b border-neutral-200">
         {STATUS_FILTERS.map((s) => {
           const active = s === filter;
           return (
             <Link
               key={s}
-              href={`/admin/feedback?status=${s}`}
+              href={feedbackHref(s, search)}
               className={
                 "px-3 py-1.5 text-sm rounded-t-md border-b-2 -mb-px " +
                 (active
-                  ? "border-brand-500 text-brand-700 font-medium"
-                  : "border-transparent text-neutral-600 hover:text-neutral-900")
+                  ? "border-neutral-900 text-neutral-900 font-medium"
+                  : "border-transparent text-neutral-500 hover:text-neutral-900")
               }
             >
-              {labelFor(s)} <span className="text-xs text-neutral-400">({counts[s]})</span>
+              {labelFor(s)} ({counts[s]})
             </Link>
           );
         })}
       </nav>
 
-      {!rows || rows.length === 0 ? (
-        <p className="text-sm text-neutral-500">Nothing here.</p>
+      <p className="text-xs text-neutral-500">
+        Showing {rows.length} of {counts[filter]} {filter === "all" ? "feedback items" : `${labelFor(filter)} items`}
+        {search ? ` matching “${search}”` : ""}.
+      </p>
+
+      {rows.length === 0 ? (
+        <p className="text-sm text-neutral-500">Nothing here{search ? ` matching “${search}”` : ""}.</p>
       ) : (
         <ul className="space-y-4">
-          {(rows as FeedbackRow[]).map((r) => (
+          {rows.map((r) => (
             <li key={r.id} className="card p-4 space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <CategoryPill category={r.category} />
@@ -163,6 +198,12 @@ export default async function AdminFeedbackPage({
       )}
     </div>
   );
+}
+
+function feedbackHref(status: StatusFilter, search: string): string {
+  const params = new URLSearchParams({ status });
+  if (search) params.set("q", search);
+  return `/admin/feedback?${params.toString()}`;
 }
 
 function labelFor(s: StatusFilter): string {

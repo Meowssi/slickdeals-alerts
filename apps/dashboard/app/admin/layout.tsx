@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
@@ -58,6 +59,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen bg-neutral-50">
+      <header className="border-b border-neutral-200 bg-white">
+        <div className="mx-auto max-w-3xl px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <Link href="/admin" className="font-semibold text-neutral-900">
+            Admin workspace
+          </Link>
+          <nav aria-label="Admin navigation" className="flex items-center gap-1 text-sm">
+            <Link href="/admin" className="rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900">
+              Overview
+            </Link>
+            <Link href="/admin/feedback" className="rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900">
+              Feedback
+            </Link>
+            <Link href="/admin/setup" className="rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900">
+              Setup
+            </Link>
+          </nav>
+        </div>
+      </header>
       <main className="mx-auto max-w-3xl px-4 py-10">{children}</main>
     </div>
   );

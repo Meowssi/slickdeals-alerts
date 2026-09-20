@@ -23,32 +23,46 @@ interface FeedbackRow {
 
 const STATUS_FILTERS = ["all", "open", "in_progress", "resolved"] as const;
 type StatusFilter = typeof STATUS_FILTERS[number];
+const FETCH_PAGE_SIZE = 1000;
+const DISPLAY_PAGE_SIZE = 50;
 
 export default async function AdminFeedbackPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string | string[]; q?: string | string[]; page?: string | string[] }>;
 }) {
   const sp = await searchParams;
-  const filter: StatusFilter = (STATUS_FILTERS as readonly string[]).includes(sp.status ?? "")
-    ? (sp.status as StatusFilter)
+  const rawStatus = firstParam(sp.status);
+  const filter: StatusFilter = (STATUS_FILTERS as readonly string[]).includes(rawStatus)
+    ? (rawStatus as StatusFilter)
     : "open";
-  const search = (sp.q ?? "").trim();
+  const search = firstParam(sp.q).trim();
   const normalizedSearch = search.toLocaleLowerCase();
+  const requestedPage = Math.max(1, Number.parseInt(firstParam(sp.page), 10) || 1);
 
   const supa = supabaseAdmin();
-  const { data: allRows } = await supa
-    .from("feedback")
-    .select("id, user_email, category, subject, message, status, admin_response, created_at, updated_at")
-    .order("created_at", { ascending: false });
-  const feedbackRows = (allRows ?? []) as FeedbackRow[];
+  const feedbackRows: FeedbackRow[] = [];
+  for (let from = 0; ; from += FETCH_PAGE_SIZE) {
+    const { data, error } = await supa
+      .from("feedback")
+      .select("id, user_email, category, subject, message, status, admin_response, created_at, updated_at")
+      .order("created_at", { ascending: false })
+      .range(from, from + FETCH_PAGE_SIZE - 1);
+    if (error) {
+      console.error("admin feedback query failed", error);
+      break;
+    }
+    const page = (data ?? []) as FeedbackRow[];
+    feedbackRows.push(...page);
+    if (page.length < FETCH_PAGE_SIZE) break;
+  }
   const counts = {
     all:         feedbackRows.length,
     open:        feedbackRows.filter((r) => r.status === "open").length,
     in_progress: feedbackRows.filter((r) => r.status === "in_progress").length,
     resolved:    feedbackRows.filter((r) => r.status === "resolved").length,
   };
-  const rows = feedbackRows.filter((r) => {
+  const filteredRows = feedbackRows.filter((r) => {
     if (filter !== "all" && r.status !== filter) return false;
     if (!normalizedSearch) return true;
     return [r.user_email, r.category, r.subject, r.message]
@@ -56,6 +70,12 @@ export default async function AdminFeedbackPage({
       .toLocaleLowerCase()
       .includes(normalizedSearch);
   });
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / DISPLAY_PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const rows = filteredRows.slice(
+    (currentPage - 1) * DISPLAY_PAGE_SIZE,
+    currentPage * DISPLAY_PAGE_SIZE,
+  );
 
   return (
     <div className="space-y-6">
@@ -119,7 +139,7 @@ export default async function AdminFeedbackPage({
       </nav>
 
       <p className="text-xs text-neutral-500">
-        Showing {rows.length} of {counts[filter]} {filter === "all" ? "feedback items" : `${labelFor(filter)} items`}
+        Showing {filteredRows.length === 0 ? 0 : (currentPage - 1) * DISPLAY_PAGE_SIZE + 1}–{(currentPage - 1) * DISPLAY_PAGE_SIZE + rows.length} of {filteredRows.length} {filter === "all" ? "feedback items" : `${labelFor(filter)} items`}
         {search ? ` matching “${search}”` : ""}.
       </p>
 
@@ -196,13 +216,38 @@ export default async function AdminFeedbackPage({
           ))}
         </ul>
       )}
+
+      {totalPages > 1 && (
+        <nav aria-label="Feedback pages" className="flex items-center justify-between text-sm">
+          <Link
+            href={feedbackHref(filter, search, currentPage - 1)}
+            aria-disabled={currentPage === 1}
+            className={currentPage === 1 ? "pointer-events-none text-neutral-300" : "text-neutral-600 hover:text-neutral-900"}
+          >
+            ← Newer
+          </Link>
+          <span className="text-xs text-neutral-500">Page {currentPage} of {totalPages}</span>
+          <Link
+            href={feedbackHref(filter, search, currentPage + 1)}
+            aria-disabled={currentPage === totalPages}
+            className={currentPage === totalPages ? "pointer-events-none text-neutral-300" : "text-neutral-600 hover:text-neutral-900"}
+          >
+            Older →
+          </Link>
+        </nav>
+      )}
     </div>
   );
 }
 
-function feedbackHref(status: StatusFilter, search: string): string {
+function firstParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function feedbackHref(status: StatusFilter, search: string, page = 1): string {
   const params = new URLSearchParams({ status });
   if (search) params.set("q", search);
+  if (page > 1) params.set("page", String(page));
   return `/admin/feedback?${params.toString()}`;
 }
 

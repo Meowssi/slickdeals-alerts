@@ -16,7 +16,7 @@ import { NtfyWalkthrough } from "@/components/wizards/ntfy-walkthrough";
 import { TelegramWalkthrough } from "@/components/wizards/telegram-walkthrough";
 import { DiscordWalkthrough } from "@/components/wizards/discord-walkthrough";
 import { PushoverWalkthrough } from "@/components/wizards/pushover-walkthrough";
-import { TwilioWalkthrough } from "@/components/wizards/twilio-walkthrough";
+import { TelnyxWalkthrough } from "@/components/wizards/telnyx-walkthrough";
 import { ResendEmailWalkthrough } from "@/components/wizards/resend-email-walkthrough";
 
 type Step =
@@ -204,7 +204,7 @@ function ConfigureChannel(props: {
   if (!meta) return <p>Unknown provider.</p>;
 
   // Per-channel walkthroughs render their own headings.
-  const hasOwnHeader = meta.type === "ntfy" || meta.type === "telegram" || meta.type === "discord" || meta.type === "pushover" || meta.type === "sms_twilio" || meta.type === "email";
+  const hasOwnHeader = meta.type === "ntfy" || meta.type === "telegram" || meta.type === "discord" || meta.type === "pushover" || meta.type === "sms_telnyx" || meta.type === "email";
 
   return (
     <>
@@ -242,8 +242,8 @@ function ChannelForm(props: {
   if (props.meta.type === "pushover") {
     return <PushoverWalkthrough onDone={props.onDone} onSkip={props.onSkip} isAdmin={props.isAdmin} />;
   }
-  if (props.meta.type === "sms_twilio") {
-    return <TwilioWalkthrough onDone={props.onDone} onSkip={props.onSkip} />;
+  if (props.meta.type === "sms_telnyx") {
+    return <TelnyxWalkthrough onDone={props.onDone} onSkip={props.onSkip} />;
   }
   if (props.meta.type === "email") {
     return <ResendEmailWalkthrough onDone={props.onDone} onSkip={props.onSkip} />;

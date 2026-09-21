@@ -31,7 +31,7 @@ export type AlertPriority = "silent" | "normal" | "urgent";
 export type ChannelType =
   | "telegram"
   | "ntfy"
-  | "sms_twilio"
+  | "sms_telnyx"
   | "pushover"
   | "discord"
   | "email"

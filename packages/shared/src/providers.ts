@@ -65,19 +65,21 @@ export const PROVIDER_CATALOG: ProviderMeta[] = [
     requiresServerSecrets: false,
   },
   {
-    type: "sms_twilio",
-    displayName: "SMS (Twilio)",
-    description: "Text message to your phone. Works without internet. Paid (~$0.008/msg).",
+    type: "sms_telnyx",
+    displayName: "SMS (Telnyx)",
+    description: "Text message to your phone. Works without internet. Paid (~$0.005/msg).",
     setup: {
       instructions:
-        "Enter your phone number (E.164 format, e.g. +15551234567). We'll text you a code to confirm.",
+        "Use the Telnyx setup walkthrough — it guides you through creating a Telnyx account, buying a number, registering A2P 10DLC, and entering your credentials.",
       fields: [
-        { key: "phone", label: "Phone number", placeholder: "+15551234567", type: "tel", required: true,
+        { key: "api_key", label: "Telnyx API key", placeholder: "KEY...", type: "password", required: true },
+        { key: "from_number", label: "Your Telnyx number (from)", placeholder: "+14155550123", type: "tel", required: true },
+        { key: "phone", label: "Your real phone (recipient)", placeholder: "+15551234567", type: "tel", required: true,
           help: "Format: +<country><number>. US example: +15551234567" },
       ],
       verifyMode: "sms",
     },
-    requiresServerSecrets: true,
+    requiresServerSecrets: false,
   },
   {
     type: "pushover",

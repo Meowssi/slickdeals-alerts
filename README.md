@@ -43,7 +43,7 @@ After the 1-click deploy, the `/admin/setup` wizard handles every other config s
 
 ## What ships with the box
 
-- **7 notification channels** out of the box: Telegram (with inline Save/Dismiss buttons), SMS via Twilio, Pushover, ntfy.sh, Discord, email via Resend, generic JSON webhook.
+- **7 notification channels** out of the box: Telegram (with inline Save/Dismiss buttons), SMS via Telnyx, Pushover, ntfy.sh, Discord, email via Resend, generic JSON webhook.
 - **Per-user channel routing** — an alert can fire only to Telegram, while another fires SMS + email.
 - **Quiet hours + digest mode** per user.
 - **Latency telemetry** — the `/stats` page tracks RSS-publish → notification-sent latency p50/p95/p99 over 24 h.
